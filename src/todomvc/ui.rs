@@ -9,11 +9,14 @@ mod colors {
 
     const GRAY_1: Color = Color::rgb(0.95, 0.95, 0.95);
     const GRAY_3: Color = Color::rgb(0.6, 0.6, 0.6);
+    const GRAY_8: Color = Color::rgb(0.1, 0.1, 0.1);
+    const GRAY_9: Color = Color::rgb(0.05, 0.05, 0.05);
 
     pub const PAGE_BACKGROUND: Color = GRAY_1;
     pub const HEADER_RED: Color =
         Color::rgba(175f32 / 255f32, 47f32 / 255f32, 47f32 / 255f32, 0.45);
     pub const TEXT_MUTED: Color = GRAY_3;
+    pub const TEXT: Color = GRAY_8;
     pub const WHITE: Color = Color::WHITE;
 }
 
@@ -58,7 +61,7 @@ pub fn build(app: &mut AppBuilder) {
         .add_startup_system(setup_ui.system())
         .add_system(node_click_event_source.system())
         .add_system(focusable_click_system.system())
-        .add_system(spam_todo_input_events.system())
+        .add_system(on_todo_input_focus.system())
     // .add_system(clear_click_focus_system.system());
     ;
 }
@@ -223,21 +226,53 @@ struct TodoInputReaderState {
     blur_reader: EventReader<BlurEvent>,
 }
 
-fn spam_todo_input_events(
+// fn spam_todo_input_events(
+//     mut readers: ResMut<TodoInputReaderState>,
+//     focus_events: Res<Events<FocusEvent>>,
+//     blur_events: Res<Events<BlurEvent>>,
+//     inputs: Query<&TodoInputNode>,
+// ) {
+//     for event in readers.focus_reader.iter(&focus_events) {
+//         if let Ok(_) = inputs.get::<TodoInputNode>(event.focused) {
+//             println!("Got focus!");
+//         }
+//     }
+
+//     for event in readers.blur_reader.iter(&blur_events) {
+//         if let Ok(_) = inputs.get::<TodoInputNode>(event.blurred) {
+//             println!("Lost focus :/");
+//         }
+//     }
+// }
+
+fn on_todo_input_focus(
     mut readers: ResMut<TodoInputReaderState>,
     focus_events: Res<Events<FocusEvent>>,
     blur_events: Res<Events<BlurEvent>>,
-    inputs: Query<&TodoInputNode>,
+    inputs: Query<(&TodoInputNode, &Children)>,
+    texts: Query<&mut Text>,
 ) {
     for event in readers.focus_reader.iter(&focus_events) {
-        if let Ok(node) = inputs.get::<TodoInputNode>(event.focused) {
-            println!("Got focus!");
+        if let Ok(focused_children) = inputs.get::<Children>(event.focused) {
+            // find the Text element
+            for child in &focused_children.0 {
+                if let Ok(mut txt) = texts.get_mut::<Text>(*child) {
+                    txt.value = "Type something now!".to_string();
+                    txt.style.color = colors::TEXT;
+                }
+            }
         }
     }
 
     for event in readers.blur_reader.iter(&blur_events) {
-        if let Ok(node) = inputs.get::<TodoInputNode>(event.blurred) {
-            println!("Lost focus :/");
+        if let Ok(blurred_children) = inputs.get::<Children>(event.blurred) {
+            // find the Text element
+            for child in &blurred_children.0 {
+                if let Ok(mut txt) = texts.get_mut::<Text>(*child) {
+                    txt.value = "What needs to be done?".to_string();
+                    txt.style.color = colors::TEXT_MUTED;
+                }
+            }
         }
     }
 }
