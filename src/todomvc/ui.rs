@@ -2,27 +2,28 @@ use bevy::input::keyboard::ElementState;
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 
-use smallvec::smallvec;
+use super::todo_input;
 
 use super::rect_helpers::RectHelpers;
 
-mod colors {
+pub mod colors {
     use bevy::prelude::Color;
 
     const GRAY_1: Color = Color::rgb(0.95, 0.95, 0.95);
     const GRAY_3: Color = Color::rgb(0.6, 0.6, 0.6);
+    #[allow(dead_code)]
     const GRAY_8: Color = Color::rgb(0.1, 0.1, 0.1);
-    const GRAY_9: Color = Color::rgb(0.05, 0.05, 0.05);
+    const _GRAY_9: Color = Color::rgb(0.05, 0.05, 0.05);
 
     pub const PAGE_BACKGROUND: Color = GRAY_1;
     pub const HEADER_RED: Color =
         Color::rgba(175f32 / 255f32, 47f32 / 255f32, 47f32 / 255f32, 0.45);
     pub const TEXT_MUTED: Color = GRAY_3;
-    pub const TEXT: Color = GRAY_8;
+    pub const _TEXT: Color = GRAY_8;
     pub const WHITE: Color = Color::WHITE;
 }
 
-mod sizes {
+pub mod sizes {
     use bevy::prelude::Val;
 
     pub const SPACER_XS: Val = Val::Px(5.0);
@@ -35,10 +36,10 @@ mod sizes {
     pub const APP_WIDTH: Val = Val::Px(550.0);
 }
 
-struct ButtonMaterials {
-    normal: Handle<ColorMaterial>,
-    hovered: Handle<ColorMaterial>,
-    pressed: Handle<ColorMaterial>,
+pub struct ButtonMaterials {
+    pub normal: Handle<ColorMaterial>,
+    pub hovered: Handle<ColorMaterial>,
+    pub pressed: Handle<ColorMaterial>,
 }
 
 impl FromResources for ButtonMaterials {
@@ -53,17 +54,17 @@ impl FromResources for ButtonMaterials {
 }
 
 pub fn build(app: &mut AppBuilder) {
+    todo_input::build(app);
+
     app.add_event::<NodeClickEvent>()
         .add_event::<FocusEvent>()
         .add_event::<BlurEvent>()
         .init_resource::<ButtonMaterials>()
         .init_resource::<Focus>()
         .init_resource::<FocusableClickedState>()
-        .init_resource::<TodoInputReaderState>()
         .add_startup_system(setup_ui.system())
         .add_system(node_click_event_source.system())
         .add_system(focusable_click_system.system())
-        .add_system(on_todo_input_focus.system())
         .add_system(button_interaction_system.system())
     // .add_system(clear_click_focus_system.system());
     ;
@@ -75,21 +76,31 @@ struct NodeClickEvent {
 }
 
 #[derive(Debug, Clone)]
-struct FocusEvent {
-    focused: Entity,
+pub struct FocusEvent {
+    pub focused: Entity,
 }
 
 #[derive(Debug, Clone)]
-struct BlurEvent {
-    blurred: Entity,
+pub struct BlurEvent {
+    pub blurred: Entity,
 }
-
-struct TodoInputNode {}
 
 struct Root;
 
-struct Focusable {
+pub struct Focusable {
     has_focus: bool,
+}
+
+impl Focusable {
+    pub fn has_focus(&self) -> bool {
+        self.has_focus
+    }
+}
+
+impl Default for Focusable {
+    fn default() -> Self {
+        Focusable { has_focus: false }
+    }
 }
 
 #[derive(Default)]
@@ -97,12 +108,12 @@ struct Focus {
     entity: Option<Entity>,
 }
 
-struct NodeContext<'a> {
-    asset_server: Res<'a, AssetServer>,
-    fonts: ResMut<'a, Assets<Font>>,
-    materials: ResMut<'a, Assets<ColorMaterial>>,
-    button_materials: Res<'a, ButtonMaterials>,
-    font: Handle<Font>,
+pub struct NodeContext<'a> {
+    pub asset_server: Res<'a, AssetServer>,
+    pub fonts: ResMut<'a, Assets<Font>>,
+    pub materials: ResMut<'a, Assets<ColorMaterial>>,
+    pub button_materials: Res<'a, ButtonMaterials>,
+    pub font: Handle<Font>,
 }
 
 fn node_click_event_source(
@@ -208,7 +219,7 @@ fn set_focus(
     focus_events: &mut ResMut<Events<FocusEvent>>,
     blur_events: &mut ResMut<Events<BlurEvent>>,
 ) {
-    let had_focus = focusable.has_focus;
+    let had_focus = focusable.has_focus();
 
     if is_focused != had_focus && is_focused {
         println!("focusing: {:?}", entity);
@@ -221,12 +232,6 @@ fn set_focus(
     }
 
     focusable.has_focus = is_focused;
-}
-
-#[derive(Default)]
-struct TodoInputReaderState {
-    focus_reader: EventReader<FocusEvent>,
-    blur_reader: EventReader<BlurEvent>,
 }
 
 // fn spam_todo_input_events(
@@ -247,64 +252,6 @@ struct TodoInputReaderState {
 //         }
 //     }
 // }
-
-fn on_todo_input_focus(
-    mut commands: Commands,
-    mut readers: ResMut<TodoInputReaderState>,
-    focus_events: Res<Events<FocusEvent>>,
-    blur_events: Res<Events<BlurEvent>>,
-    asset_server: Res<AssetServer>,
-    fonts: ResMut<Assets<Font>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-    button_materials: Res<ButtonMaterials>,
-    inputs: Query<(&TodoInputNode, &mut Children)>,
-    texts: Query<(Entity, &Text)>,
-    add_buttons: Query<(Entity, &InsertTodoButton)>,
-) {
-    let font = asset_server
-        .get_handle("assets/fonts/FiraSans-ExtraLight.ttf")
-        .unwrap();
-
-    let mut ctx = NodeContext {
-        asset_server: asset_server,
-        fonts: fonts,
-        materials: materials,
-        button_materials: button_materials,
-        font: font,
-    };
-
-    for event in readers.focus_reader.iter(&focus_events) {
-        println!("TodoInput was focused: {:?}", event.focused);
-        if let Ok(focused_children) = inputs.get_mut::<Children>(event.focused) {
-            println!("And we have a child node");
-            // find the Text element
-            for child in &focused_children.0 {
-                if let Ok(_) = texts.get::<Text>(*child) {
-                    commands.despawn_recursive(*child);
-                }
-            }
-
-            let child = insert_todo_button_node(&mut commands, &mut ctx);
-            commands.push_children(event.focused, &[child]);
-        }
-    }
-
-    for event in readers.blur_reader.iter(&blur_events) {
-        println!("TodoInput was blurred: {:?}", event.blurred);
-        if let Ok(blurred_children) = inputs.get::<Children>(event.blurred) {
-            for child in &blurred_children.0 {
-                if let Ok(_) = add_buttons.get::<InsertTodoButton>(*child) {
-                    commands.despawn_recursive(*child);
-                }
-            }
-
-            let created = Entity::new();
-            commands
-                .spawn_as_entity(created, input_node_label_bundle(&ctx))
-                .push_children(event.blurred, &[created]);
-        }
-    }
-}
 
 fn button_interaction_system(
     button_materials: Res<ButtonMaterials>,
@@ -328,8 +275,8 @@ fn button_interaction_system(
 fn setup_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    mut fonts: ResMut<Assets<Font>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    fonts: ResMut<Assets<Font>>,
+    materials: ResMut<Assets<ColorMaterial>>,
     button_materials: Res<ButtonMaterials>,
 ) {
     let font = asset_server
@@ -369,27 +316,9 @@ fn setup_ui(
                                 margin: Some(Rect::top(sizes::SPACER)),
                                 ..Default::default()
                             },
-                            |cmds, ctx| {
-                                vec![input_node(cmds, ctx), insert_todo_button_node(cmds, ctx)]
-                            },
+                            |cmds, ctx| vec![todo_input::spawn_todo_input_node(cmds, ctx)],
                         ),
                     ]
-                    // heading_node(cmds, parent, ctx, "todos");
-                    // div_node(
-                    //     cmds,
-                    //     parent,
-                    //     ctx,
-                    //     Div {
-                    //         background: colors::PAGE_BACKGROUND,
-                    //         align_items: Some(AlignItems::Center),
-                    //         margin: Some(Rect::top(sizes::SPACER)),
-                    //         ..Default::default()
-                    //     },
-                    //     |cmds, p, ctx| {
-                    //         input_node(cmds, p, ctx);
-                    //         insert_text_button_node(cmds, p, ctx);
-                    //     },
-                    // );
                 },
             ),
             div_node(
@@ -424,46 +353,6 @@ fn setup_ui(
             ),
         ]
     });
-}
-
-fn input_bundle(ctx: &mut NodeContext) -> NodeComponents {
-    NodeComponents {
-        style: Style {
-            size: Size::new(Val::Percent(100.0), Val::Px(50.0)),
-            max_size: Size::new(Val::Px(550.0), Val::Auto),
-            ..Default::default()
-        },
-        material: ctx.materials.add(colors::WHITE.into()),
-        ..Default::default()
-    }
-}
-
-fn input_node_label_bundle(ctx: &NodeContext) -> TextComponents {
-    text_bundle(
-        ctx,
-        "What needs to be done?",
-        Txt {
-            font_size: Some(24.0),
-            color: Some(colors::TEXT_MUTED),
-            margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
-            ..Default::default()
-        },
-    )
-}
-
-fn input_node(commands: &mut Commands, ctx: &mut NodeContext) -> Entity {
-    let e = Entity::new();
-
-    commands
-        .spawn_as_entity(e, input_bundle(ctx))
-        .with_children(|p| {
-            p.spawn(input_node_label_bundle(ctx));
-        })
-        .with(TodoInputNode {})
-        .with(Focusable { has_focus: false })
-        .with(Interaction::default());
-
-    return e;
 }
 
 fn heading_node(commands: &mut Commands, ctx: &NodeContext, heading: &str) -> Entity {
@@ -501,11 +390,11 @@ fn div_bundle(ctx: &mut NodeContext, opts: Div) -> NodeComponents {
 }
 
 #[derive(Default)]
-struct Div {
-    background: Color,
-    align_items: Option<AlignItems>,
-    padding: Option<Rect<Val>>,
-    margin: Option<Rect<Val>>,
+pub struct Div {
+    pub background: Color,
+    pub align_items: Option<AlignItems>,
+    pub padding: Option<Rect<Val>>,
+    pub margin: Option<Rect<Val>>,
 }
 
 fn div_node(
@@ -525,14 +414,14 @@ fn div_node(
 }
 
 #[derive(Default)]
-struct Txt {
-    font_size: Option<f32>,
-    color: Option<Color>,
-    padding: Option<Rect<Val>>,
-    margin: Option<Rect<Val>>,
+pub struct Txt {
+    pub font_size: Option<f32>,
+    pub color: Option<Color>,
+    pub padding: Option<Rect<Val>>,
+    pub margin: Option<Rect<Val>>,
 }
 
-fn text_bundle(ctx: &NodeContext, heading: &str, opts: Txt) -> TextComponents {
+pub fn text_bundle(ctx: &NodeContext, heading: &str, opts: Txt) -> TextComponents {
     return TextComponents {
         style: Style {
             align_self: AlignSelf::Center,
@@ -551,8 +440,12 @@ fn text_bundle(ctx: &NodeContext, heading: &str, opts: Txt) -> TextComponents {
         ..Default::default()
     };
 }
-
-fn text_node(commands: &mut Commands, ctx: &NodeContext, text: &str, opts: Option<Txt>) -> Entity {
+pub fn text_node(
+    commands: &mut Commands,
+    ctx: &NodeContext,
+    text: &str,
+    opts: Option<Txt>,
+) -> Entity {
     let e = Entity::new();
     commands.spawn_as_entity(e, text_bundle(ctx, text, opts.unwrap_or_default()));
 
@@ -588,48 +481,6 @@ fn root_node(
         .push_children(root, &children);
 
     return root;
-}
-
-struct InsertTodoButton;
-
-fn insert_todo_button_node(commands: &mut Commands, ctx: &NodeContext) -> Entity {
-    let e = Entity::new();
-
-    commands
-        .spawn_as_entity(
-            e,
-            ButtonComponents {
-                style: Style {
-                    size: Size::new(Val::Auto, Val::Auto),
-                    // center button
-                    padding: Rect::xy(sizes::SPACER, sizes::SPACER_XS),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // // vertically center child text
-                    align_items: AlignItems::Center,
-                    ..Default::default()
-                },
-                material: ctx.button_materials.normal,
-                ..Default::default()
-            },
-        )
-        .with(InsertTodoButton)
-        .with_children(|parent| {
-            // button label
-            parent.spawn(TextComponents {
-                text: Text {
-                    value: "Add a random todo".to_string(),
-                    font: ctx.font,
-                    style: TextStyle {
-                        font_size: 16.0,
-                        color: Color::rgb(0.8, 0.8, 0.8),
-                    },
-                },
-                ..Default::default()
-            });
-        });
-
-    return e;
 }
 
 // fn button(

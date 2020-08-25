@@ -1,4 +1,5 @@
 use bevy::prelude::{Rect, Val};
+
 pub trait RectHelpers {
     fn all(s: Val) -> Rect<Val>;
     fn x(x: Val) -> Rect<Val>;
