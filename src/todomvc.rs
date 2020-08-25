@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 pub struct TodoPlugin;
 
+mod rect_helpers;
 mod ui;
 
 impl Plugin for TodoPlugin {
