@@ -259,12 +259,13 @@ fn on_todo_input_focus(
     button_materials: Res<ButtonMaterials>,
     inputs: Query<(&TodoInputNode, &mut Children)>,
     texts: Query<(Entity, &Text)>,
+    add_buttons: Query<(Entity, &InsertTodoButton)>,
 ) {
     let font = asset_server
         .get_handle("assets/fonts/FiraSans-ExtraLight.ttf")
         .unwrap();
 
-    let ctx = NodeContext {
+    let mut ctx = NodeContext {
         asset_server: asset_server,
         fonts: fonts,
         materials: materials,
@@ -274,20 +275,29 @@ fn on_todo_input_focus(
 
     for event in readers.focus_reader.iter(&focus_events) {
         println!("TodoInput was focused: {:?}", event.focused);
-        if let Ok(mut focused_children) = inputs.get_mut::<Children>(event.focused) {
+        if let Ok(focused_children) = inputs.get_mut::<Children>(event.focused) {
             println!("And we have a child node");
             // find the Text element
             for child in &focused_children.0 {
                 if let Ok(_) = texts.get::<Text>(*child) {
-                    commands.despawn(*child);
+                    commands.despawn_recursive(*child);
                 }
             }
+
+            let child = insert_todo_button_node(&mut commands, &mut ctx);
+            commands.push_children(event.focused, &[child]);
         }
     }
 
     for event in readers.blur_reader.iter(&blur_events) {
         println!("TodoInput was blurred: {:?}", event.blurred);
-        if let Ok(mut blurred_children) = inputs.get_mut::<Children>(event.blurred) {
+        if let Ok(blurred_children) = inputs.get::<Children>(event.blurred) {
+            for child in &blurred_children.0 {
+                if let Ok(_) = add_buttons.get::<InsertTodoButton>(*child) {
+                    commands.despawn_recursive(*child);
+                }
+            }
+
             let created = Entity::new();
             commands
                 .spawn_as_entity(created, input_node_label_bundle(&ctx))
@@ -338,65 +348,81 @@ fn setup_ui(
     commands.spawn(UiCameraComponents::default());
 
     // root
-    root_node(&mut commands, &mut ctx, |cmds, parent, ctx| {
-        div_node(
-            cmds,
-            parent,
-            ctx,
-            Div {
-                background: colors::PAGE_BACKGROUND,
-                ..Default::default()
-            },
-            |cmds, parent, ctx| {
-                heading_node(cmds, parent, ctx, "todos");
-                div_node(
-                    cmds,
-                    parent,
-                    ctx,
-                    Div {
-                        background: colors::PAGE_BACKGROUND,
-                        align_items: Some(AlignItems::Center),
-                        margin: Some(Rect::top(sizes::SPACER)),
-                        ..Default::default()
-                    },
-                    |cmds, p, ctx| {
-                        input_node(cmds, p, ctx);
-                        insert_text_button_node(cmds, p, ctx);
-                    },
-                );
-            },
-        );
-        div_node(
-            cmds,
-            parent,
-            ctx,
-            Div {
-                background: colors::PAGE_BACKGROUND,
-                ..Default::default()
-            },
-            |cmds, p, ctx| {
-                text_node(
-                    cmds,
-                    p,
-                    ctx,
-                    "Double-click to edit a todo",
-                    Some(Txt {
-                        color: Some(colors::TEXT_MUTED),
-                        ..Default::default()
-                    }),
-                );
-                text_node(
-                    cmds,
-                    p,
-                    ctx,
-                    "Made with bevy_ui",
-                    Some(Txt {
-                        color: Some(colors::TEXT_MUTED),
-                        ..Default::default()
-                    }),
-                );
-            },
-        );
+    root_node(&mut commands, &mut ctx, |cmds, ctx| {
+        vec![
+            div_node(
+                cmds,
+                ctx,
+                Div {
+                    background: colors::PAGE_BACKGROUND,
+                    ..Default::default()
+                },
+                |cmds, ctx| {
+                    vec![
+                        heading_node(cmds, ctx, "todos"),
+                        div_node(
+                            cmds,
+                            ctx,
+                            Div {
+                                background: colors::PAGE_BACKGROUND,
+                                align_items: Some(AlignItems::Center),
+                                margin: Some(Rect::top(sizes::SPACER)),
+                                ..Default::default()
+                            },
+                            |cmds, ctx| {
+                                vec![input_node(cmds, ctx), insert_todo_button_node(cmds, ctx)]
+                            },
+                        ),
+                    ]
+                    // heading_node(cmds, parent, ctx, "todos");
+                    // div_node(
+                    //     cmds,
+                    //     parent,
+                    //     ctx,
+                    //     Div {
+                    //         background: colors::PAGE_BACKGROUND,
+                    //         align_items: Some(AlignItems::Center),
+                    //         margin: Some(Rect::top(sizes::SPACER)),
+                    //         ..Default::default()
+                    //     },
+                    //     |cmds, p, ctx| {
+                    //         input_node(cmds, p, ctx);
+                    //         insert_text_button_node(cmds, p, ctx);
+                    //     },
+                    // );
+                },
+            ),
+            div_node(
+                cmds,
+                ctx,
+                Div {
+                    background: colors::PAGE_BACKGROUND,
+                    ..Default::default()
+                },
+                |cmds, ctx| {
+                    vec![
+                        text_node(
+                            cmds,
+                            ctx,
+                            "Double-click to edit a todo",
+                            Some(Txt {
+                                color: Some(colors::TEXT_MUTED),
+                                ..Default::default()
+                            }),
+                        ),
+                        text_node(
+                            cmds,
+                            ctx,
+                            "Made with bevy_ui",
+                            Some(Txt {
+                                color: Some(colors::TEXT_MUTED),
+                                ..Default::default()
+                            }),
+                        ),
+                    ]
+                },
+            ),
+        ]
     });
 }
 
@@ -425,7 +451,7 @@ fn input_node_label_bundle(ctx: &NodeContext) -> TextComponents {
     )
 }
 
-fn input_node(commands: &mut Commands, parent: Entity, ctx: &mut NodeContext) {
+fn input_node(commands: &mut Commands, ctx: &mut NodeContext) -> Entity {
     let e = Entity::new();
 
     commands
@@ -435,20 +461,14 @@ fn input_node(commands: &mut Commands, parent: Entity, ctx: &mut NodeContext) {
         })
         .with(TodoInputNode {})
         .with(Focusable { has_focus: false })
-        .with(Interaction::default())
-        .push_children(parent, &[e]);
+        .with(Interaction::default());
+
+    return e;
 }
 
-fn heading_node(
-    commands: &mut Commands,
-    parent: Entity,
-    ctx: &NodeContext,
-    heading: &str,
-) -> Entity {
+fn heading_node(commands: &mut Commands, ctx: &NodeContext, heading: &str) -> Entity {
     let e = Entity::new();
-    commands
-        .spawn_as_entity(e, heading_bundle(heading, ctx))
-        .push_children(parent, &[e]);
+    commands.spawn_as_entity(e, heading_bundle(heading, ctx));
 
     return e;
 }
@@ -490,18 +510,16 @@ struct Div {
 
 fn div_node(
     commands: &mut Commands,
-    parent: Entity,
     ctx: &mut NodeContext,
     opts: Div,
-    mut children: impl FnMut(&mut Commands, Entity, &mut NodeContext),
+    mut children: impl FnMut(&mut Commands, &mut NodeContext) -> Vec<Entity>,
 ) -> Entity {
+    let children = children(commands, ctx);
+
     let e = Entity::new();
     commands
         .spawn_as_entity(e, div_bundle(ctx, opts))
-        .push_children(parent, &[e]);
-
-    children(commands, e, ctx);
-    // .with_children(|p| children(p, ctx));
+        .push_children(e, &children);
 
     return e;
 }
@@ -534,17 +552,9 @@ fn text_bundle(ctx: &NodeContext, heading: &str, opts: Txt) -> TextComponents {
     };
 }
 
-fn text_node(
-    commands: &mut Commands,
-    parent: Entity,
-    ctx: &NodeContext,
-    text: &str,
-    opts: Option<Txt>,
-) -> Entity {
+fn text_node(commands: &mut Commands, ctx: &NodeContext, text: &str, opts: Option<Txt>) -> Entity {
     let e = Entity::new();
-    commands
-        .spawn_as_entity(e, text_bundle(ctx, text, opts.unwrap_or_default()))
-        .push_children(parent, &[e]);
+    commands.spawn_as_entity(e, text_bundle(ctx, text, opts.unwrap_or_default()));
 
     return e;
 }
@@ -566,20 +576,23 @@ fn root_bundle(context: &mut NodeContext) -> NodeComponents {
 fn root_node(
     commands: &mut Commands,
     ctx: &mut NodeContext,
-    mut children: impl FnMut(&mut Commands, Entity, &mut NodeContext),
+    children: impl Fn(&mut Commands, &mut NodeContext) -> Vec<Entity>,
 ) -> Entity {
     let root = Entity::new();
+
+    let children = children(commands, ctx);
+
     commands
         .spawn_as_entity(root, root_bundle(ctx))
-        // .with_children(|p| children(root, context))
-        .with(Root);
-
-    children(commands, root, ctx);
+        .with(Root)
+        .push_children(root, &children);
 
     return root;
 }
 
-fn insert_text_button_node(commands: &mut Commands, parent: Entity, ctx: &NodeContext) {
+struct InsertTodoButton;
+
+fn insert_todo_button_node(commands: &mut Commands, ctx: &NodeContext) -> Entity {
     let e = Entity::new();
 
     commands
@@ -587,9 +600,9 @@ fn insert_text_button_node(commands: &mut Commands, parent: Entity, ctx: &NodeCo
             e,
             ButtonComponents {
                 style: Style {
-                    size: Size::new(Val::Percent(100.0), Val::Px(45.0)),
+                    size: Size::new(Val::Auto, Val::Auto),
                     // center button
-                    margin: Rect::all(Val::Px(0.0)),
+                    padding: Rect::xy(sizes::SPACER, sizes::SPACER_XS),
                     // horizontally center child text
                     justify_content: JustifyContent::Center,
                     // // vertically center child text
@@ -600,21 +613,23 @@ fn insert_text_button_node(commands: &mut Commands, parent: Entity, ctx: &NodeCo
                 ..Default::default()
             },
         )
+        .with(InsertTodoButton)
         .with_children(|parent| {
             // button label
             parent.spawn(TextComponents {
                 text: Text {
-                    value: "Send a message".to_string(),
+                    value: "Add a random todo".to_string(),
                     font: ctx.font,
                     style: TextStyle {
-                        font_size: 12.0,
+                        font_size: 16.0,
                         color: Color::rgb(0.8, 0.8, 0.8),
                     },
                 },
                 ..Default::default()
             });
-        })
-        .push_children(parent, &[e]);
+        });
+
+    return e;
 }
 
 // fn button(
