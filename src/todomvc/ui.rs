@@ -86,7 +86,7 @@ struct BlurEvent {
 
 struct TodoInputNode {}
 
-struct Root {}
+struct Root;
 
 struct Focusable {
     has_focus: bool,
@@ -338,18 +338,20 @@ fn setup_ui(
     commands.spawn(UiCameraComponents::default());
 
     // root
-    root_node(&mut commands, &mut ctx, |p, ctx| {
+    root_node(&mut commands, &mut ctx, |cmds, parent, ctx| {
         div_node(
-            p,
+            cmds,
+            parent,
             ctx,
             Div {
                 background: colors::PAGE_BACKGROUND,
                 ..Default::default()
             },
-            |p, ctx| {
-                heading_node(p, ctx, "todos");
+            |cmds, parent, ctx| {
+                heading_node(cmds, parent, ctx, "todos");
                 div_node(
-                    p,
+                    cmds,
+                    parent,
                     ctx,
                     Div {
                         background: colors::PAGE_BACKGROUND,
@@ -357,22 +359,24 @@ fn setup_ui(
                         margin: Some(Rect::top(sizes::SPACER)),
                         ..Default::default()
                     },
-                    |p, ctx| {
-                        input_node(p, ctx);
-                        insert_text_button_node(p, ctx);
+                    |cmds, p, ctx| {
+                        input_node(cmds, p, ctx);
+                        insert_text_button_node(cmds, p, ctx);
                     },
                 );
             },
         );
         div_node(
-            p,
+            cmds,
+            parent,
             ctx,
             Div {
                 background: colors::PAGE_BACKGROUND,
                 ..Default::default()
             },
-            |p, ctx| {
+            |cmds, p, ctx| {
                 text_node(
+                    cmds,
                     p,
                     ctx,
                     "Double-click to edit a todo",
@@ -382,6 +386,7 @@ fn setup_ui(
                     }),
                 );
                 text_node(
+                    cmds,
                     p,
                     ctx,
                     "Made with bevy_ui",
@@ -420,29 +425,32 @@ fn input_node_label_bundle(ctx: &NodeContext) -> TextComponents {
     )
 }
 
-fn input_node(p: &mut ChildBuilder, ctx: &mut NodeContext) {
-    p.spawn(input_bundle(ctx))
+fn input_node(commands: &mut Commands, parent: Entity, ctx: &mut NodeContext) {
+    let e = Entity::new();
+
+    commands
+        .spawn_as_entity(e, input_bundle(ctx))
         .with_children(|p| {
             p.spawn(input_node_label_bundle(ctx));
-            // text_node(
-            //     p,
-            //     ctx,
-            //     "What needs to be done?",
-            //     Some(Txt {
-            //         font_size: Some(24.0),
-            //         color: Some(colors::TEXT_MUTED),
-            //         margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
-            //         ..Default::default()
-            //     }),
-            // )
         })
         .with(TodoInputNode {})
         .with(Focusable { has_focus: false })
-        .with(Interaction::default());
+        .with(Interaction::default())
+        .push_children(parent, &[e]);
 }
 
-fn heading_node(p: &mut ChildBuilder, ctx: &NodeContext, heading: &str) {
-    p.spawn(heading_bundle(heading, ctx));
+fn heading_node(
+    commands: &mut Commands,
+    parent: Entity,
+    ctx: &NodeContext,
+    heading: &str,
+) -> Entity {
+    let e = Entity::new();
+    commands
+        .spawn_as_entity(e, heading_bundle(heading, ctx))
+        .push_children(parent, &[e]);
+
+    return e;
 }
 
 fn heading_bundle(heading: &str, ctx: &NodeContext) -> TextComponents {
@@ -481,13 +489,21 @@ struct Div {
 }
 
 fn div_node(
-    p: &mut ChildBuilder,
+    commands: &mut Commands,
+    parent: Entity,
     ctx: &mut NodeContext,
     opts: Div,
-    mut children: impl FnMut(&mut ChildBuilder, &mut NodeContext),
-) {
-    p.spawn(div_bundle(ctx, opts))
-        .with_children(|p| children(p, ctx));
+    mut children: impl FnMut(&mut Commands, Entity, &mut NodeContext),
+) -> Entity {
+    let e = Entity::new();
+    commands
+        .spawn_as_entity(e, div_bundle(ctx, opts))
+        .push_children(parent, &[e]);
+
+    children(commands, e, ctx);
+    // .with_children(|p| children(p, ctx));
+
+    return e;
 }
 
 #[derive(Default)]
@@ -518,8 +534,19 @@ fn text_bundle(ctx: &NodeContext, heading: &str, opts: Txt) -> TextComponents {
     };
 }
 
-fn text_node(p: &mut ChildBuilder, ctx: &NodeContext, text: &str, opts: Option<Txt>) {
-    p.spawn(text_bundle(ctx, text, opts.unwrap_or_default()));
+fn text_node(
+    commands: &mut Commands,
+    parent: Entity,
+    ctx: &NodeContext,
+    text: &str,
+    opts: Option<Txt>,
+) -> Entity {
+    let e = Entity::new();
+    commands
+        .spawn_as_entity(e, text_bundle(ctx, text, opts.unwrap_or_default()))
+        .push_children(parent, &[e]);
+
+    return e;
 }
 
 fn root_bundle(context: &mut NodeContext) -> NodeComponents {
@@ -538,45 +565,56 @@ fn root_bundle(context: &mut NodeContext) -> NodeComponents {
 
 fn root_node(
     commands: &mut Commands,
-    context: &mut NodeContext,
-    mut children: impl FnMut(&mut ChildBuilder, &mut NodeContext),
-) {
+    ctx: &mut NodeContext,
+    mut children: impl FnMut(&mut Commands, Entity, &mut NodeContext),
+) -> Entity {
+    let root = Entity::new();
     commands
-        .spawn(root_bundle(context))
-        .with_children(|p| children(p, context))
-        .with(Root {})
-        .with(Interaction::default());
+        .spawn_as_entity(root, root_bundle(ctx))
+        // .with_children(|p| children(root, context))
+        .with(Root);
+
+    children(commands, root, ctx);
+
+    return root;
 }
 
-fn insert_text_button_node(p: &mut ChildBuilder, ctx: &NodeContext) {
-    p.spawn(ButtonComponents {
-        style: Style {
-            size: Size::new(Val::Percent(100.0), Val::Px(45.0)),
-            // center button
-            margin: Rect::all(Val::Px(0.0)),
-            // horizontally center child text
-            justify_content: JustifyContent::Center,
-            // // vertically center child text
-            align_items: AlignItems::Center,
-            ..Default::default()
-        },
-        material: ctx.button_materials.normal,
-        ..Default::default()
-    })
-    .with_children(|parent| {
-        // button label
-        parent.spawn(TextComponents {
-            text: Text {
-                value: "Send a message".to_string(),
-                font: ctx.font,
-                style: TextStyle {
-                    font_size: 12.0,
-                    color: Color::rgb(0.8, 0.8, 0.8),
+fn insert_text_button_node(commands: &mut Commands, parent: Entity, ctx: &NodeContext) {
+    let e = Entity::new();
+
+    commands
+        .spawn_as_entity(
+            e,
+            ButtonComponents {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Px(45.0)),
+                    // center button
+                    margin: Rect::all(Val::Px(0.0)),
+                    // horizontally center child text
+                    justify_content: JustifyContent::Center,
+                    // // vertically center child text
+                    align_items: AlignItems::Center,
+                    ..Default::default()
                 },
+                material: ctx.button_materials.normal,
+                ..Default::default()
             },
-            ..Default::default()
-        });
-    });
+        )
+        .with_children(|parent| {
+            // button label
+            parent.spawn(TextComponents {
+                text: Text {
+                    value: "Send a message".to_string(),
+                    font: ctx.font,
+                    style: TextStyle {
+                        font_size: 12.0,
+                        color: Color::rgb(0.8, 0.8, 0.8),
+                    },
+                },
+                ..Default::default()
+            });
+        })
+        .push_children(parent, &[e]);
 }
 
 // fn button(
