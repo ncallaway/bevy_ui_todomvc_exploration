@@ -2,6 +2,8 @@ use bevy::input::keyboard::ElementState;
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 
+use smallvec::smallvec;
+
 use super::rect_helpers::RectHelpers;
 
 mod colors {
@@ -62,6 +64,7 @@ pub fn build(app: &mut AppBuilder) {
         .add_system(node_click_event_source.system())
         .add_system(focusable_click_system.system())
         .add_system(on_todo_input_focus.system())
+        .add_system(button_interaction_system.system())
     // .add_system(clear_click_focus_system.system());
     ;
 }
@@ -246,32 +249,67 @@ struct TodoInputReaderState {
 // }
 
 fn on_todo_input_focus(
+    mut commands: Commands,
     mut readers: ResMut<TodoInputReaderState>,
     focus_events: Res<Events<FocusEvent>>,
     blur_events: Res<Events<BlurEvent>>,
-    inputs: Query<(&TodoInputNode, &Children)>,
-    texts: Query<&mut Text>,
+    asset_server: Res<AssetServer>,
+    fonts: ResMut<Assets<Font>>,
+    materials: ResMut<Assets<ColorMaterial>>,
+    button_materials: Res<ButtonMaterials>,
+    inputs: Query<(&TodoInputNode, &mut Children)>,
+    texts: Query<(Entity, &Text)>,
 ) {
+    let font = asset_server
+        .get_handle("assets/fonts/FiraSans-ExtraLight.ttf")
+        .unwrap();
+
+    let ctx = NodeContext {
+        asset_server: asset_server,
+        fonts: fonts,
+        materials: materials,
+        button_materials: button_materials,
+        font: font,
+    };
+
     for event in readers.focus_reader.iter(&focus_events) {
-        if let Ok(focused_children) = inputs.get::<Children>(event.focused) {
+        println!("TodoInput was focused: {:?}", event.focused);
+        if let Ok(mut focused_children) = inputs.get_mut::<Children>(event.focused) {
+            println!("And we have a child node");
             // find the Text element
             for child in &focused_children.0 {
-                if let Ok(mut txt) = texts.get_mut::<Text>(*child) {
-                    txt.value = "Type something now!".to_string();
-                    txt.style.color = colors::TEXT;
+                if let Ok(_) = texts.get::<Text>(*child) {
+                    commands.despawn(*child);
                 }
             }
         }
     }
 
     for event in readers.blur_reader.iter(&blur_events) {
-        if let Ok(blurred_children) = inputs.get::<Children>(event.blurred) {
-            // find the Text element
-            for child in &blurred_children.0 {
-                if let Ok(mut txt) = texts.get_mut::<Text>(*child) {
-                    txt.value = "What needs to be done?".to_string();
-                    txt.style.color = colors::TEXT_MUTED;
-                }
+        println!("TodoInput was blurred: {:?}", event.blurred);
+        if let Ok(mut blurred_children) = inputs.get_mut::<Children>(event.blurred) {
+            let created = Entity::new();
+            commands
+                .spawn_as_entity(created, input_node_label_bundle(&ctx))
+                .push_children(event.blurred, &[created]);
+        }
+    }
+}
+
+fn button_interaction_system(
+    button_materials: Res<ButtonMaterials>,
+    mut interaction_query: Query<(&Button, Mutated<Interaction>, &mut Handle<ColorMaterial>)>,
+) {
+    for (_, interaction, mut material) in &mut interaction_query.iter() {
+        match *interaction {
+            Interaction::Clicked => {
+                *material = button_materials.pressed;
+            }
+            Interaction::Hovered => {
+                *material = button_materials.hovered;
+            }
+            Interaction::None => {
+                *material = button_materials.normal;
             }
         }
     }
@@ -321,6 +359,7 @@ fn setup_ui(
                     },
                     |p, ctx| {
                         input_node(p, ctx);
+                        insert_text_button_node(p, ctx);
                     },
                 );
             },
@@ -368,20 +407,34 @@ fn input_bundle(ctx: &mut NodeContext) -> NodeComponents {
     }
 }
 
+fn input_node_label_bundle(ctx: &NodeContext) -> TextComponents {
+    text_bundle(
+        ctx,
+        "What needs to be done?",
+        Txt {
+            font_size: Some(24.0),
+            color: Some(colors::TEXT_MUTED),
+            margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
+            ..Default::default()
+        },
+    )
+}
+
 fn input_node(p: &mut ChildBuilder, ctx: &mut NodeContext) {
     p.spawn(input_bundle(ctx))
         .with_children(|p| {
-            text_node(
-                p,
-                ctx,
-                "What needs to be done?",
-                Some(Txt {
-                    font_size: Some(24.0),
-                    color: Some(colors::TEXT_MUTED),
-                    margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
-                    ..Default::default()
-                }),
-            )
+            p.spawn(input_node_label_bundle(ctx));
+            // text_node(
+            //     p,
+            //     ctx,
+            //     "What needs to be done?",
+            //     Some(Txt {
+            //         font_size: Some(24.0),
+            //         color: Some(colors::TEXT_MUTED),
+            //         margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
+            //         ..Default::default()
+            //     }),
+            // )
         })
         .with(TodoInputNode {})
         .with(Focusable { has_focus: false })
@@ -495,38 +548,69 @@ fn root_node(
         .with(Interaction::default());
 }
 
-fn button(
-    commands: &mut ChildBuilder,
-    button_materials: &Res<ButtonMaterials>,
-    font: Handle<Font>,
-) {
-    commands
-        .spawn(ButtonComponents {
-            style: Style {
-                size: Size::new(Val::Percent(100.0), Val::Px(45.0)),
-                // center button
-                margin: Rect::all(Val::Px(0.0)),
-                // horizontally center child text
-                justify_content: JustifyContent::Center,
-                // // vertically center child text
-                align_items: AlignItems::Center,
-                ..Default::default()
-            },
-            material: button_materials.normal,
+fn insert_text_button_node(p: &mut ChildBuilder, ctx: &NodeContext) {
+    p.spawn(ButtonComponents {
+        style: Style {
+            size: Size::new(Val::Percent(100.0), Val::Px(45.0)),
+            // center button
+            margin: Rect::all(Val::Px(0.0)),
+            // horizontally center child text
+            justify_content: JustifyContent::Center,
+            // // vertically center child text
+            align_items: AlignItems::Center,
             ..Default::default()
-        })
-        .with_children(|parent| {
-            // button label
-            parent.spawn(TextComponents {
-                text: Text {
-                    value: "Send a message".to_string(),
-                    font: font,
-                    style: TextStyle {
-                        font_size: 12.0,
-                        color: Color::rgb(0.8, 0.8, 0.8),
-                    },
+        },
+        material: ctx.button_materials.normal,
+        ..Default::default()
+    })
+    .with_children(|parent| {
+        // button label
+        parent.spawn(TextComponents {
+            text: Text {
+                value: "Send a message".to_string(),
+                font: ctx.font,
+                style: TextStyle {
+                    font_size: 12.0,
+                    color: Color::rgb(0.8, 0.8, 0.8),
                 },
-                ..Default::default()
-            });
+            },
+            ..Default::default()
         });
+    });
 }
+
+// fn button(
+//     commands: &mut ChildBuilder,
+//     button_materials: &Res<ButtonMaterials>,
+//     font: Handle<Font>,
+// ) {
+//     commands
+//         .spawn(ButtonComponents {
+//             style: Style {
+//                 size: Size::new(Val::Percent(100.0), Val::Px(45.0)),
+//                 // center button
+//                 margin: Rect::all(Val::Px(0.0)),
+//                 // horizontally center child text
+//                 justify_content: JustifyContent::Center,
+//                 // // vertically center child text
+//                 align_items: AlignItems::Center,
+//                 ..Default::default()
+//             },
+//             material: button_materials.normal,
+//             ..Default::default()
+//         })
+//         .with_children(|parent| {
+//             // button label
+//             parent.spawn(TextComponents {
+//                 text: Text {
+//                     value: "Send a message".to_string(),
+//                     font: font,
+//                     style: TextStyle {
+//                         font_size: 12.0,
+//                         color: Color::rgb(0.8, 0.8, 0.8),
+//                     },
+//                 },
+//                 ..Default::default()
+//             });
+//         });
+// }
