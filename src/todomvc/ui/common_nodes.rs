@@ -27,7 +27,6 @@ pub fn text_button_node(ctx: &mut NodeContext, node: TextButtonNode) -> Entity {
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 margin: node.margin.unwrap_or_default(),
-                // flex_grow: node.flex_grow.unwrap_or(0.0),
                 ..Default::default()
             },
             material: node.color_normal.unwrap_or(ctx.colors.btn_dark),

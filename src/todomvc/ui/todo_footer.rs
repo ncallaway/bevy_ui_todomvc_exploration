@@ -53,33 +53,55 @@ fn count_label_system(mut q: Query<&Todo>, mut items: Query<(&mut Text, &mut Cou
 struct CountLabel(Option<usize>);
 
 fn spawn_count_label(ctx: &mut NodeContext) -> Entity {
-    let e = text_node(
+    div_node(
         ctx,
-        TextNode {
-            text: "Some items left",
-            flex_grow: Some(0.5),
+        DivNode {
+            flex_grow: Some(1.0),
+            flex_direction: Some(FlexDirection::Row),
+            justify_content: Some(JustifyContent::FlexStart),
             ..Default::default()
         },
-    );
+        |ctx| {
+            let e = text_node(
+                ctx,
+                TextNode {
+                    text: "Some items left",
+                    flex_grow: Some(0.5),
+                    ..Default::default()
+                },
+            );
 
-    ctx.cmds.insert_one(e, CountLabel(None));
+            ctx.cmds.insert_one(e, CountLabel(None));
 
-    e
+            vec![e]
+        },
+    )
 }
 
 fn spawn_clear_button(ctx: &mut NodeContext) -> Entity {
-    text_button_node(
+    div_node(
         ctx,
-        TextButtonNode {
-            label: TextNode {
-                text: "Clear Completed",
-                ..Default::default()
-            },
-            color_normal: ctx.colors.white.into(),
-            color_hover: ctx.colors.btn_light_hovered.into(),
-            color_pressed: ctx.colors.btn_light_pressed.into(),
-            flex_grow: Some(0.5),
+        DivNode {
+            flex_grow: Some(1.0),
+            flex_direction: Some(FlexDirection::Row),
+            justify_content: Some(JustifyContent::FlexEnd),
             ..Default::default()
+        },
+        |ctx| {
+            vec![text_button_node(
+                ctx,
+                TextButtonNode {
+                    label: TextNode {
+                        text: "Clear Completed",
+                        ..Default::default()
+                    },
+                    color_normal: ctx.colors.white.into(),
+                    color_hover: ctx.colors.btn_light_hovered.into(),
+                    color_pressed: ctx.colors.btn_light_pressed.into(),
+                    flex_grow: Some(0.5),
+                    ..Default::default()
+                },
+            )]
         },
     )
 }
@@ -98,12 +120,7 @@ fn spawn_tab_button(ctx: &mut NodeContext, filter: Filter, label: &str, last: bo
             color_hover: ctx.colors.background_hover_red.into(),
             color_active: ctx.colors.background_active_red.into(),
             color_pressed: ctx.colors.background_pressed_red.into(),
-            margin: Some(Rect {
-                left: Val::Px(0.0),
-                right: if last { sizes::ZERO } else { sizes::SPACER },
-                top: Val::Px(0.0),
-                bottom: Val::Px(0.0),
-            }),
+            margin: Some(Rect::right(if last { sizes::ZERO } else { sizes::SPACER })),
             padding: Some(Rect::all(sizes::SPACER_XS)),
             ..Default::default()
         },
@@ -117,7 +134,7 @@ fn spawn_tab_controls(ctx: &mut NodeContext) -> Entity {
     let e = div_node(
         ctx,
         DivNode {
-            background: ctx.colors.page_background.into(),
+            background: ctx.colors.white.into(),
             justify_content: Some(JustifyContent::Center),
             flex_direction: Some(FlexDirection::Row),
             flex_grow: Some(1.0),

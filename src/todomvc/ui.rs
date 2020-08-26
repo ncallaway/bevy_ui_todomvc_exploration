@@ -8,6 +8,8 @@ mod common_nodes;
 mod todo_body;
 mod todo_footer;
 mod todo_input;
+mod todo_list;
+mod todo_row;
 
 pub use common_nodes::*;
 
@@ -125,6 +127,8 @@ pub fn build(app: &mut AppBuilder) {
 
     todo_input::build(app);
     todo_body::build(app);
+    todo_list::build(app);
+    todo_row::build(app);
     todo_footer::build(app);
 }
 

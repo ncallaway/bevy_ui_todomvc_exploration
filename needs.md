@@ -1,4 +1,4 @@
-## bevy_ui
+## These are things that it would be nice if `bevy_ui` provided
 
 - Scrolling container
 - Input component

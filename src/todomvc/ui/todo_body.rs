@@ -13,20 +13,6 @@ use crate::todomvc::domain::Todo;
 // ]
 
 pub fn build(app: &mut AppBuilder) {
-    //   todo_input::build(app);
-
-    //   app.add_event::<NodeClickEvent>()
-    //     .add_event::<FocusEvent>()
-    //     .add_event::<BlurEvent>()
-    //     .init_resource::<ButtonMaterials>()
-    //     .init_resource::<Focus>()
-    //     .init_resource::<FocusableClickedState>()
-    //     .add_startup_system(setup_ui.system())
-    //     .add_system(node_click_event_source.system())
-    //     .add_system(focusable_click_system.system())
-    //     .add_system(button_interaction_system.system())
-    // // .add_system(clear_click_focus_system.system());
-    // ;
     app.add_resource(PriorTodos(false))
         .add_system_to_stage(ui_stage::DOMAIN_EVENTS, on_todo_added.system());
 }
@@ -58,12 +44,9 @@ fn on_todo_added(
     };
 
     for _ in &mut added_query.iter() {
-        println!("a todo was added");
         if prior.0 == false {
-            println!("THIS IS THE FIRST TODO, WE SHOULD SPAWN THE BODY!");
             prior.0 = true;
             for (parent, _) in &mut container_query.iter() {
-                println!("Found a home, spawning the thing");
                 let e = spawn_todo_body(&mut ctx);
                 ctx.cmds.push_children(parent, &[e]);
                 break;
@@ -91,6 +74,11 @@ fn spawn_todo_body(ctx: &mut NodeContext) -> Entity {
         DivNode {
             ..Default::default()
         },
-        |ctx| vec![todo_footer::spawn_todo_footer(ctx)],
+        |ctx| {
+            vec![
+                todo_list::spawn_todo_list(ctx),
+                todo_footer::spawn_todo_footer(ctx),
+            ]
+        },
     )
 }
