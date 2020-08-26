@@ -50,6 +50,7 @@ fn on_todo_input_focus(
         .unwrap();
 
     let mut ctx = NodeContext {
+        cmds: &mut commands,
         asset_server: asset_server,
         fonts: fonts,
         materials: materials,
@@ -63,12 +64,12 @@ fn on_todo_input_focus(
             for child in &focused_children.0 {
                 if let Ok(_) = texts.get::<Text>(*child) {
                     println!("\tDespawning placeholder label recurisve: {:?}", child);
-                    commands.despawn_recursive(*child);
+                    ctx.cmds.despawn_recursive(*child);
                 }
             }
 
-            let child = spawn_add_button_node(&mut commands, &mut ctx);
-            commands.push_children(event.focused, &[child]);
+            let child = spawn_add_button_node(&mut ctx);
+            ctx.cmds.push_children(event.focused, &[child]);
         }
     }
 
@@ -80,7 +81,7 @@ fn on_todo_input_focus(
                 for (e, _) in &mut add_buttons.iter() {
                     if e == *child {
                         println!("\tDespawning button recurisve: {:?}", child);
-                        commands.despawn_recursive(*child);
+                        ctx.cmds.despawn_recursive(*child);
                     }
                 }
                 // todo: the following is producing a `Query error: CannotReadArchetype`. Is it my fault or
@@ -94,13 +95,13 @@ fn on_todo_input_focus(
                 // }
             }
 
-            let label = spawn_placeholder_label(&mut commands, &mut ctx);
-            commands.push_children(event.blurred, &[label]);
+            let label = spawn_placeholder_label(&mut ctx);
+            ctx.cmds.push_children(event.blurred, &[label]);
         }
     }
 }
 
-pub fn spawn_todo_input_node(commands: &mut Commands, ctx: &mut NodeContext) -> Entity {
+pub fn spawn_todo_input_node(ctx: &mut NodeContext) -> Entity {
     let e = Entity::new();
 
     let bundle = NodeComponents {
@@ -114,9 +115,9 @@ pub fn spawn_todo_input_node(commands: &mut Commands, ctx: &mut NodeContext) -> 
         ..Default::default()
     };
 
-    let children = [spawn_placeholder_label(commands, ctx)];
+    let children = [spawn_placeholder_label(ctx)];
 
-    commands
+    ctx.cmds
         .spawn_as_entity(e, bundle)
         .with(TodoInputNode {})
         .with(Focusable::default())
@@ -126,7 +127,7 @@ pub fn spawn_todo_input_node(commands: &mut Commands, ctx: &mut NodeContext) -> 
     return e;
 }
 
-fn spawn_placeholder_label(commands: &mut Commands, ctx: &mut NodeContext) -> Entity {
+fn spawn_placeholder_label(ctx: &mut NodeContext) -> Entity {
     let bundle = text_bundle(
         ctx,
         "What needs to be done?",
@@ -139,14 +140,15 @@ fn spawn_placeholder_label(commands: &mut Commands, ctx: &mut NodeContext) -> En
     );
 
     let e = Entity::new();
-    commands.spawn_as_entity(e, bundle);
+    ctx.cmds.spawn_as_entity(e, bundle);
     return e;
 }
 
-fn spawn_add_button_node(commands: &mut Commands, ctx: &NodeContext) -> Entity {
+fn spawn_add_button_node(ctx: &mut NodeContext) -> Entity {
     let e = Entity::new();
+    let f = ctx.font;
 
-    commands
+    ctx.cmds
         .spawn_as_entity(
             e,
             ButtonComponents {
@@ -170,7 +172,7 @@ fn spawn_add_button_node(commands: &mut Commands, ctx: &NodeContext) -> Entity {
             parent.spawn(TextComponents {
                 text: Text {
                     value: "Add a random todo".to_string(),
-                    font: ctx.font,
+                    font: f,
                     style: TextStyle {
                         font_size: 16.0,
                         color: Color::rgb(0.8, 0.8, 0.8),

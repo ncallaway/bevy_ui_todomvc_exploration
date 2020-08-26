@@ -109,6 +109,7 @@ struct Focus {
 }
 
 pub struct NodeContext<'a> {
+    pub cmds: &'a mut Commands,
     pub asset_server: Res<'a, AssetServer>,
     pub fonts: ResMut<'a, Assets<Font>>,
     pub materials: ResMut<'a, Assets<ColorMaterial>>,
@@ -284,6 +285,7 @@ fn setup_ui(
         .unwrap();
 
     let mut ctx = NodeContext {
+        cmds: &mut commands,
         asset_server: asset_server,
         fonts: fonts,
         materials: materials,
@@ -292,23 +294,21 @@ fn setup_ui(
     };
 
     // 2d camera
-    commands.spawn(UiCameraComponents::default());
+    ctx.cmds.spawn(UiCameraComponents::default());
 
     // root
-    root_node(&mut commands, &mut ctx, |cmds, ctx| {
+    root_node(&mut ctx, |ctx| {
         vec![
             div_node(
-                cmds,
                 ctx,
                 Div {
                     background: colors::PAGE_BACKGROUND,
                     ..Default::default()
                 },
-                |cmds, ctx| {
+                |ctx| {
                     vec![
-                        heading_node(cmds, ctx, "todos"),
+                        heading_node(ctx, "todos"),
                         div_node(
-                            cmds,
                             ctx,
                             Div {
                                 background: colors::PAGE_BACKGROUND,
@@ -316,22 +316,20 @@ fn setup_ui(
                                 margin: Some(Rect::top(sizes::SPACER)),
                                 ..Default::default()
                             },
-                            |cmds, ctx| vec![todo_input::spawn_todo_input_node(cmds, ctx)],
+                            |ctx| vec![todo_input::spawn_todo_input_node(ctx)],
                         ),
                     ]
                 },
             ),
             div_node(
-                cmds,
                 ctx,
                 Div {
                     background: colors::PAGE_BACKGROUND,
                     ..Default::default()
                 },
-                |cmds, ctx| {
+                |ctx| {
                     vec![
                         text_node(
-                            cmds,
                             ctx,
                             "Double-click to edit a todo",
                             Some(Txt {
@@ -340,7 +338,6 @@ fn setup_ui(
                             }),
                         ),
                         text_node(
-                            cmds,
                             ctx,
                             "Made with bevy_ui",
                             Some(Txt {
@@ -355,9 +352,9 @@ fn setup_ui(
     });
 }
 
-fn heading_node(commands: &mut Commands, ctx: &NodeContext, heading: &str) -> Entity {
+fn heading_node(ctx: &mut NodeContext, heading: &str) -> Entity {
     let e = Entity::new();
-    commands.spawn_as_entity(e, heading_bundle(heading, ctx));
+    ctx.cmds.spawn_as_entity(e, heading_bundle(heading, ctx));
 
     return e;
 }
@@ -398,16 +395,17 @@ pub struct Div {
 }
 
 fn div_node(
-    commands: &mut Commands,
     ctx: &mut NodeContext,
     opts: Div,
-    mut children: impl FnMut(&mut Commands, &mut NodeContext) -> Vec<Entity>,
+    mut children: impl FnMut(&mut NodeContext) -> Vec<Entity>,
 ) -> Entity {
-    let children = children(commands, ctx);
+    let children = children(ctx);
 
     let e = Entity::new();
-    commands
-        .spawn_as_entity(e, div_bundle(ctx, opts))
+
+    let bundle = div_bundle(ctx, opts);
+    ctx.cmds
+        .spawn_as_entity(e, bundle)
         .push_children(e, &children);
 
     return e;
@@ -440,14 +438,10 @@ pub fn text_bundle(ctx: &NodeContext, heading: &str, opts: Txt) -> TextComponent
         ..Default::default()
     };
 }
-pub fn text_node(
-    commands: &mut Commands,
-    ctx: &NodeContext,
-    text: &str,
-    opts: Option<Txt>,
-) -> Entity {
+pub fn text_node(ctx: &mut NodeContext, text: &str, opts: Option<Txt>) -> Entity {
     let e = Entity::new();
-    commands.spawn_as_entity(e, text_bundle(ctx, text, opts.unwrap_or_default()));
+    ctx.cmds
+        .spawn_as_entity(e, text_bundle(ctx, text, opts.unwrap_or_default()));
 
     return e;
 }
@@ -466,21 +460,33 @@ fn root_bundle(context: &mut NodeContext) -> NodeComponents {
     }
 }
 
-fn root_node(
-    commands: &mut Commands,
-    ctx: &mut NodeContext,
-    children: impl Fn(&mut Commands, &mut NodeContext) -> Vec<Entity>,
-) -> Entity {
-    let root = Entity::new();
+fn root_node(ctx: &mut NodeContext, children: impl Fn(&mut NodeContext) -> Vec<Entity>) -> Entity {
+    // let root = Entity::new();
 
-    let children = children(commands, ctx);
+    // let children = children(ctx.cmds, ctx);
 
-    commands
-        .spawn_as_entity(root, root_bundle(ctx))
-        .with(Root)
-        .push_children(root, &children);
+    // ctx.cmds
+    //     .spawn_as_entity(root, root_bundle(ctx))
+    //     .with(Root)
+    //     .push_children(root, &children);
 
-    return root;
+    // return root;
+    tap_entity(|e| {
+        let children = children(ctx);
+        let bundle = root_bundle(ctx);
+        ctx.cmds
+            .spawn_as_entity(e, bundle)
+            .with(Root)
+            .push_children(e, &children);
+    })
+}
+
+fn tap_entity(mut do_stuff: impl FnMut(Entity)) -> Entity {
+    let e = Entity::new();
+
+    do_stuff(e);
+
+    return e;
 }
 
 // fn button(
