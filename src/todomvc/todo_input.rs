@@ -5,19 +5,54 @@ use super::ui::colors;
 use super::ui::sizes;
 use super::ui::*;
 
+use super::domain::Todo;
+
 pub fn build(app: &mut AppBuilder) {
     app.init_resource::<TodoInputReaderState>()
+        .add_system(on_add_button_clicked.system())
         .add_system(on_todo_input_focus.system());
 }
 
 pub struct TodoInputNode {}
-pub struct InsertTodoButton;
+pub struct AddTodoButton;
 
 #[derive(Default)]
 struct TodoInputReaderState {
     focus_reader: EventReader<FocusEvent>,
     blur_reader: EventReader<BlurEvent>,
 }
+
+fn on_add_button_clicked(
+    mut commands: Commands,
+    mut click_query: Query<(Entity, &AddTodoButton, Mutated<Interaction>)>,
+) {
+    for (e, _button, interaction) in &mut click_query.iter() {
+        if *interaction == Interaction::Clicked {
+            println!("an add todo button was clicked: {:?}", e);
+
+            commands.spawn((Todo::new(Todo::random_message()),));
+        }
+    }
+}
+
+// fn add_message_system(
+//   mut commands: Commands,
+//   ci: Res<ConnectionInfo>,
+//   mut network_create_messages: ResMut<CreateMessages>,
+//   mut interaction_query: Query<(&Button, Mutated<Interaction>)>,
+// ) {
+//   for (_button, interaction) in &mut interaction_query.iter() {
+//       if let Interaction::Clicked = *interaction {
+//           if ci.is_server() {
+//               // immediately create the message
+//               commands.spawn((Message::new(&random_message(), "server", 255),));
+//           } else {
+//               // schedule the message to be sent to the server
+//               network_create_messages.messages.push(random_message());
+//           }
+//       }
+//   }
+// }
 
 fn on_todo_input_focus(
     mut commands: Commands,
@@ -30,7 +65,7 @@ fn on_todo_input_focus(
     button_materials: Res<ButtonMaterials>,
     inputs: Query<(&TodoInputNode, &mut Children)>,
     texts: Query<(Entity, &Text)>,
-    add_buttons: Query<(Entity, &InsertTodoButton)>,
+    mut add_buttons: Query<(Entity, &AddTodoButton)>,
 ) {
     let font = asset_server
         .get_handle("assets/fonts/FiraSans-ExtraLight.ttf")
@@ -45,15 +80,15 @@ fn on_todo_input_focus(
     };
 
     for event in readers.focus_reader.iter(&focus_events) {
-        println!("TodoInput was focused: {:?}", event.focused);
         if let Ok(focused_children) = inputs.get_mut::<Children>(event.focused) {
             for child in &focused_children.0 {
                 if let Ok(_) = texts.get::<Text>(*child) {
+                    println!("\tDespawning placeholder label recurisve: {:?}", child);
                     commands.despawn_recursive(*child);
                 }
             }
 
-            let child = insert_todo_button_node(&mut commands, &mut ctx);
+            let child = spawn_add_button_node(&mut commands, &mut ctx);
             commands.push_children(event.focused, &[child]);
         }
     }
@@ -61,21 +96,32 @@ fn on_todo_input_focus(
     for event in readers.blur_reader.iter(&blur_events) {
         if let Ok(blurred_children) = inputs.get::<Children>(event.blurred) {
             for child in &blurred_children.0 {
-                if let Ok(_) = add_buttons.get::<InsertTodoButton>(*child) {
-                    commands.despawn_recursive(*child);
+                // normally we'd use add_buttons.get::() here, but see below
+                for (e, _) in &mut add_buttons.iter() {
+                    if e == *child {
+                        println!("\tDespawning button recurisve: {:?}", child);
+                        commands.despawn_recursive(*child);
+                    }
                 }
+                // todo: the following is producing a `Query error: CannotReadArchetype`. Is it my fault or
+                // bevy's fault? Who knows! I'll figure it out later.
+                // let r = add_buttons.get::<InsertTodoButton>(*child);
+                // if let Ok(_) = r {
+                //     println!("\t\t\tDespawning button recurisve: {:?}", child);
+                //     commands.despawn_recursive(*child);
+                // } else if let Err(x) = r {
+                //     println!("\t\t\tQuery error: {:?}", x);
+                // }
             }
 
-            let created = Entity::new();
-            commands
-                .spawn_as_entity(created, input_node_label_bundle(&ctx))
-                .push_children(event.blurred, &[created]);
+            let label = spawn_placeholder_label(&mut commands, &mut ctx);
+            commands.push_children(event.blurred, &[label]);
         }
     }
 }
 
-fn input_node_label_bundle(ctx: &NodeContext) -> TextComponents {
-    text_bundle(
+fn spawn_placeholder_label(commands: &mut Commands, ctx: &mut NodeContext) -> Entity {
+    let bundle = text_bundle(
         ctx,
         "What needs to be done?",
         Txt {
@@ -84,7 +130,12 @@ fn input_node_label_bundle(ctx: &NodeContext) -> TextComponents {
             margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
             ..Default::default()
         },
-    )
+    );
+
+    let e = Entity::new();
+    println!("Spawning placeholder label: {:?}", e);
+    commands.spawn_as_entity(e, bundle);
+    return e;
 }
 
 pub fn spawn_todo_input_node(commands: &mut Commands, ctx: &mut NodeContext) -> Entity {
@@ -101,20 +152,22 @@ pub fn spawn_todo_input_node(commands: &mut Commands, ctx: &mut NodeContext) -> 
         ..Default::default()
     };
 
+    let children = [spawn_placeholder_label(commands, ctx)];
+
     commands
         .spawn_as_entity(e, bundle)
-        .with_children(|p| {
-            p.spawn(input_node_label_bundle(ctx));
-        })
         .with(TodoInputNode {})
         .with(Focusable::default())
-        .with(Interaction::default());
+        .with(Interaction::default())
+        .push_children(e, &children);
 
     return e;
 }
 
-fn insert_todo_button_node(commands: &mut Commands, ctx: &NodeContext) -> Entity {
+fn spawn_add_button_node(commands: &mut Commands, ctx: &NodeContext) -> Entity {
     let e = Entity::new();
+
+    println!("Spawning add button: {:?}", e);
 
     commands
         .spawn_as_entity(
@@ -134,7 +187,7 @@ fn insert_todo_button_node(commands: &mut Commands, ctx: &NodeContext) -> Entity
                 ..Default::default()
             },
         )
-        .with(InsertTodoButton)
+        .with(AddTodoButton)
         .with_children(|parent| {
             // button label
             parent.spawn(TextComponents {
