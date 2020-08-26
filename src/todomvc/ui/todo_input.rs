@@ -27,8 +27,9 @@ fn on_add_button_clicked(
 ) {
     for (_, interaction) in &mut click_query.iter() {
         if *interaction == Interaction::Clicked {
-            println!("spawning a new todo...");
-            commands.spawn((Todo::new(Todo::random_message()),));
+            let label = Todo::random_message();
+            println!("Creating a todo: {}", &label);
+            commands.spawn((Todo::new(label),));
         }
     }
 }
@@ -144,7 +145,7 @@ fn spawn_add_button_node(ctx: &mut NodeContext) -> Entity {
         TextButtonNode {
             label: TextNode {
                 text: "Add a random todo",
-                color: Some(Color::rgb(0.8, 0.8, 0.8)),
+                color: Some(colors::TEXT_LIGHT),
                 ..Default::default()
             },
             ..Default::default()

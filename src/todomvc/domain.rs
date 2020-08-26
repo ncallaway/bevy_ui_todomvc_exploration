@@ -1,11 +1,41 @@
 use bevy::prelude::*;
 use rand::seq::SliceRandom;
 
+use crate::todomvc::ui::ui_stage;
+
 pub fn build(app: &mut AppBuilder) {
-    app.init_resource::<Filter>();
+    app.init_resource::<Filter>()
+        .add_system_to_stage(ui_stage::DOMAIN_SYNC, todo_ordering_system.system());
 }
 
-#[derive(PartialEq, Copy, Clone)]
+fn todo_ordering_system(mut todos: Query<&mut Todo>) {
+    let mut i = todos.iter();
+    let mut sorted_todos: Vec<Mut<Todo>> = i.into_iter().collect();
+
+    sorted_todos.sort_by(|a, b| a.ordinal.cmp(&b.ordinal));
+
+    let mut next = 0;
+    let mut needs_compact = false;
+
+    // Do we need to compact?
+    for todo in &sorted_todos {
+        if todo.ordinal != next {
+            needs_compact = true;
+        }
+        next = next + 1;
+    }
+
+    // If so, do it.
+    if needs_compact {
+        let mut next = 0;
+        for todo in &mut sorted_todos {
+            todo.ordinal = next;
+            next = next + 1;
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Filter {
     All,
     Active,
@@ -29,7 +59,7 @@ impl Todo {
         Todo {
             label: label,
             completed: false,
-            ordinal: 0, // 0 is our special ordinal to indicate that the compactor should move it to the end of the list
+            ordinal: u16::MAX,
         }
     }
 

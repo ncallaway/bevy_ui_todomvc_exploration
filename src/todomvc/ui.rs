@@ -16,6 +16,8 @@ pub use common_nodes::*;
 pub mod ui_stage {
     pub const USER_EVENTS: &str = "user_events";
     pub const DOMAIN_EVENTS: &str = "domain_events";
+
+    pub const DOMAIN_SYNC: &str = "domain_sync";
     pub const VISUAL_SYNC: &str = "visual_sync";
 }
 
@@ -47,6 +49,7 @@ pub mod colors {
     pub const BACKGROUND_HOVER_RED: Color = LIGHT_RED;
     pub const BACKGROUND_PRESSED_RED: Color = PRESSED_RED;
     pub const HEADER_RED: Color = FADED_RED;
+    pub const TEXT_LIGHT: Color = GRAY_1;
     pub const TEXT_MUTED: Color = GRAY_5;
     pub const TEXT: Color = GRAY_9;
 
@@ -115,7 +118,8 @@ pub fn build(app: &mut AppBuilder) {
         .add_event::<BlurEvent>()
         .add_stage_before(stage::UPDATE, ui_stage::USER_EVENTS)
         .add_stage_after(stage::UPDATE, ui_stage::DOMAIN_EVENTS)
-        .add_stage_after(ui_stage::DOMAIN_EVENTS, ui_stage::VISUAL_SYNC)
+        .add_stage_after(ui_stage::DOMAIN_EVENTS, ui_stage::DOMAIN_SYNC)
+        .add_stage_after(ui_stage::DOMAIN_SYNC, ui_stage::VISUAL_SYNC)
         .init_resource::<ColorMaterials>()
         .init_resource::<Focus>()
         .init_resource::<FocusableClickedState>()

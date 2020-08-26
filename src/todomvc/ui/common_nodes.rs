@@ -15,11 +15,13 @@ pub struct ButtonBehavior {
     pub is_active: bool,
 }
 
+pub struct TextButtonLabel;
+
 pub fn text_button_node(ctx: &mut NodeContext, node: TextButtonNode) -> Entity {
     ctx.spawn_node(|e, ctx| {
         let bundle = ButtonComponents {
             style: Style {
-                size: Size::new(Val::Auto, Val::Auto),
+                size: node.size.unwrap_or(Size::new(Val::Auto, Val::Auto)),
                 padding: node
                     .padding
                     .unwrap_or(Rect::xy(sizes::SPACER, sizes::SPACER_XS)),
@@ -34,6 +36,7 @@ pub fn text_button_node(ctx: &mut NodeContext, node: TextButtonNode) -> Entity {
         };
 
         let child = text_node(ctx, node.label.clone());
+        ctx.cmds.insert_one(child, TextButtonLabel);
 
         ctx.cmds
             .spawn_as_entity(e, bundle)
@@ -123,6 +126,7 @@ pub struct TextButtonNode<'a> {
     pub margin: Option<Rect<Val>>,
     pub padding: Option<Rect<Val>>,
     pub flex_grow: Option<f32>,
+    pub size: Option<Size<Val>>,
 
     pub color_normal: Option<Handle<ColorMaterial>>,
     pub color_pressed: Option<Handle<ColorMaterial>>,

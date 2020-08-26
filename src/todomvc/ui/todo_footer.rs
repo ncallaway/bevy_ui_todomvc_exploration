@@ -6,7 +6,25 @@ use crate::todomvc::domain::{Filter, Todo};
 pub fn build(app: &mut AppBuilder) {
     app.add_system(count_label_system.system())
         .add_system_to_stage(ui_stage::USER_EVENTS, on_filter_tab_button_click.system())
+        .add_system_to_stage(ui_stage::USER_EVENTS, on_clear_completed_click.system())
         .add_system(set_filter_tab_active_system.system());
+}
+
+fn on_clear_completed_click(
+    mut commands: Commands,
+    mut click_query: Query<(&ClearCompletedButton, Mutated<Interaction>)>,
+    mut todo_query: Query<(Entity, &Todo)>,
+) {
+    for (_, i) in &mut click_query.iter() {
+        if *i == Interaction::Clicked {
+            println!("Clearing completed todos");
+            for (e, todo) in &mut todo_query.iter() {
+                if todo.completed {
+                    commands.despawn_recursive(e);
+                }
+            }
+        }
+    }
 }
 
 fn on_filter_tab_button_click(
@@ -16,6 +34,7 @@ fn on_filter_tab_button_click(
     for (ft, i) in &mut click_query.iter() {
         if *i == Interaction::Clicked {
             *filter = ft.0;
+            println!("Filtering to: {:?}", ft.0);
         }
     }
 }
@@ -78,6 +97,8 @@ fn spawn_count_label(ctx: &mut NodeContext) -> Entity {
     )
 }
 
+struct ClearCompletedButton;
+
 fn spawn_clear_button(ctx: &mut NodeContext) -> Entity {
     div_node(
         ctx,
@@ -88,7 +109,7 @@ fn spawn_clear_button(ctx: &mut NodeContext) -> Entity {
             ..Default::default()
         },
         |ctx| {
-            vec![text_button_node(
+            let btn = text_button_node(
                 ctx,
                 TextButtonNode {
                     label: TextNode {
@@ -101,7 +122,11 @@ fn spawn_clear_button(ctx: &mut NodeContext) -> Entity {
                     flex_grow: Some(0.5),
                     ..Default::default()
                 },
-            )]
+            );
+
+            ctx.cmds.insert_one(btn, ClearCompletedButton);
+
+            vec![btn]
         },
     )
 }
