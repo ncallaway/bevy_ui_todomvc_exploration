@@ -4,26 +4,35 @@ use bevy::prelude::*;
 
 use crate::rect_helpers::*;
 
+mod todo_body;
+mod todo_footer;
 mod todo_input;
+
+pub mod ui_stage {
+    pub const USER_EVENTS: &str = "user_events";
+    pub const DOMAIN_EVENTS: &str = "domain_events";
+}
 
 pub mod colors {
     use bevy::prelude::Color;
 
     const GRAY_1: Color = Color::rgb(0.95, 0.95, 0.95);
     const GRAY_3: Color = Color::rgb(0.6, 0.6, 0.6);
-    const GRAY_8: Color = Color::rgb(0.1, 0.1, 0.1);
-    const _GRAY_9: Color = Color::rgb(0.05, 0.05, 0.05);
+    const _GRAY_8: Color = Color::rgb(0.1, 0.1, 0.1);
+    const GRAY_9: Color = Color::rgb(0.05, 0.05, 0.05);
 
     pub const PAGE_BACKGROUND: Color = GRAY_1;
     pub const HEADER_RED: Color =
         Color::rgba(175f32 / 255f32, 47f32 / 255f32, 47f32 / 255f32, 0.45);
     pub const TEXT_MUTED: Color = GRAY_3;
-    pub const TEXT: Color = GRAY_8;
+    pub const TEXT: Color = GRAY_9;
     pub const WHITE: Color = Color::WHITE;
 }
 
 pub mod sizes {
     use bevy::prelude::Val;
+
+    pub const ZERO: Val = Val::Px(0.0);
 
     pub const SPACER_XS: Val = Val::Px(5.0);
     pub const SPACER_SM: Val = Val::Px(10.0);
@@ -32,7 +41,11 @@ pub mod sizes {
     pub const SPACER_XL: Val = Val::Px(80.0);
     pub const SPACER: Val = SPACER_MD;
 
-    pub const APP_WIDTH: Val = Val::Px(550.0);
+    pub const APP_WIDTH: Val = Val::Px(600.0);
+
+    pub const FONT_H1: f32 = 100.0;
+    pub const FONT_LARGE: f32 = 24.0;
+    pub const FONT_BODY: f32 = 16.0;
 }
 
 pub struct ButtonMaterials {
@@ -53,20 +66,23 @@ impl FromResources for ButtonMaterials {
 }
 
 pub fn build(app: &mut AppBuilder) {
-    todo_input::build(app);
-
     app.add_event::<NodeClickEvent>()
         .add_event::<FocusEvent>()
         .add_event::<BlurEvent>()
+        .add_stage_before(stage::UPDATE, ui_stage::USER_EVENTS)
+        .add_stage_after(stage::UPDATE, ui_stage::DOMAIN_EVENTS)
         .init_resource::<ButtonMaterials>()
         .init_resource::<Focus>()
         .init_resource::<FocusableClickedState>()
         .add_startup_system(setup_ui.system())
         .add_system(node_click_event_source.system())
         .add_system(focusable_click_system.system())
-        .add_system(button_interaction_system.system())
+        .add_system(button_interaction_system.system());
     // .add_system(clear_click_focus_system.system());
-    ;
+
+    todo_input::build(app);
+    todo_body::build(app);
+    todo_footer::build(app);
 }
 
 #[derive(Debug, Clone)]
@@ -85,6 +101,8 @@ pub struct BlurEvent {
 }
 
 struct Root;
+
+pub struct TodoContainer;
 
 pub struct Focusable {
     has_focus: bool,
@@ -252,28 +270,31 @@ fn setup_ui(
                 ctx,
                 DivNode {
                     background: colors::PAGE_BACKGROUND,
+                    align_items: Some(AlignItems::Center),
                     ..Default::default()
                 },
                 |ctx| {
-                    vec![
-                        heading_node(
-                            ctx,
-                            TextNode {
-                                text: "todos",
-                                ..Default::default()
-                            },
-                        ),
-                        div_node(
-                            ctx,
-                            DivNode {
-                                background: colors::PAGE_BACKGROUND,
-                                align_items: Some(AlignItems::Center),
-                                margin: Some(Rect::top(sizes::SPACER)),
-                                ..Default::default()
-                            },
-                            |ctx| vec![todo_input::spawn_todo_input_node(ctx)],
-                        ),
-                    ]
+                    let heading = heading_node(
+                        ctx,
+                        TextNode {
+                            text: "todos",
+                            ..Default::default()
+                        },
+                    );
+
+                    let container = div_node(
+                        ctx,
+                        DivNode {
+                            margin: Some(Rect::top(sizes::SPACER)),
+                            size: Some(Size::new(Val::Percent(100.0), Val::Auto)),
+                            max_size: Some(Size::new(sizes::APP_WIDTH, Val::Auto)),
+                            ..Default::default()
+                        },
+                        |ctx| vec![todo_input::spawn_todo_input_node(ctx)],
+                    );
+                    ctx.cmds.insert_one(container, TodoContainer);
+
+                    vec![heading, container]
                 },
             ),
             div_node(
@@ -308,7 +329,7 @@ fn setup_ui(
 }
 
 fn heading_node(ctx: &mut NodeContext, mut node: TextNode) -> Entity {
-    node.font_size = node.font_size.or(Some(100f32));
+    node.font_size = node.font_size.or(Some(sizes::FONT_H1));
     node.color = node.color.or(Some(colors::HEADER_RED));
     text_node(ctx, node)
 }
@@ -316,10 +337,14 @@ fn heading_node(ctx: &mut NodeContext, mut node: TextNode) -> Entity {
 #[derive(Default)]
 pub struct DivNode {
     pub background: Color,
+    pub size: Option<Size<Val>>,
+    pub min_size: Option<Size<Val>>,
+    pub max_size: Option<Size<Val>>,
     pub align_items: Option<AlignItems>,
     pub padding: Option<Rect<Val>>,
     pub margin: Option<Rect<Val>>,
     pub flex_direction: Option<FlexDirection>,
+    pub justify_content: Option<JustifyContent>,
 }
 
 fn div_node(
@@ -330,11 +355,14 @@ fn div_node(
     ctx.spawn_node(|e, ctx| {
         let bundle = NodeComponents {
             style: Style {
-                size: Size::new(Val::Auto, Val::Auto),
                 flex_direction: node.flex_direction.unwrap_or(FlexDirection::ColumnReverse),
                 align_items: node.align_items.unwrap_or_default(),
                 padding: node.padding.unwrap_or_default(),
                 margin: node.margin.unwrap_or_default(),
+                size: node.size.unwrap_or(Size::new(Val::Auto, Val::Auto)),
+                min_size: node.min_size.unwrap_or(Size::new(Val::Auto, Val::Auto)),
+                max_size: node.max_size.unwrap_or(Size::new(Val::Auto, Val::Auto)),
+                justify_content: node.justify_content.unwrap_or_default(),
                 ..Default::default()
             },
             material: ctx.materials.add(node.background.into()),
@@ -370,7 +398,7 @@ pub fn text_node(ctx: &mut NodeContext, node: TextNode) -> Entity {
                 value: node.text.to_string(),
                 font: ctx.font,
                 style: TextStyle {
-                    font_size: node.font_size.unwrap_or(16.0),
+                    font_size: node.font_size.unwrap_or(sizes::FONT_BODY),
                     color: node.color.unwrap_or(colors::TEXT),
                 },
             },

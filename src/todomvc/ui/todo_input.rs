@@ -8,8 +8,8 @@ use crate::todomvc::domain::Todo;
 
 pub fn build(app: &mut AppBuilder) {
     app.init_resource::<TodoInputReaderState>()
-        .add_system(on_add_button_clicked.system())
-        .add_system(on_todo_input_focus.system());
+        .add_system_to_stage(ui_stage::USER_EVENTS, on_add_button_clicked.system())
+        .add_system_to_stage(ui_stage::USER_EVENTS, on_todo_input_focus.system());
 }
 
 pub struct TodoInputNode {}
@@ -27,6 +27,7 @@ fn on_add_button_clicked(
 ) {
     for (_, interaction) in &mut click_query.iter() {
         if *interaction == Interaction::Clicked {
+            println!("spawning a new todo...");
             commands.spawn((Todo::new(Todo::random_message()),));
         }
     }
@@ -105,7 +106,6 @@ pub fn spawn_todo_input_node(ctx: &mut NodeContext) -> Entity {
     let bundle = NodeComponents {
         style: Style {
             size: Size::new(Val::Percent(100.0), Val::Px(50.0)),
-            max_size: Size::new(Val::Px(550.0), Val::Auto),
             align_items: AlignItems::Center,
             ..Default::default()
         },
@@ -141,6 +141,9 @@ fn spawn_placeholder_label(ctx: &mut NodeContext) -> Entity {
         ctx,
         TextNode {
             text: "What needs to be done?",
+            font_size: Some(sizes::FONT_LARGE),
+            color: Some(colors::TEXT_MUTED),
+            margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
             ..Default::default()
         },
     )
@@ -180,7 +183,7 @@ fn spawn_add_button_node(ctx: &mut NodeContext) -> Entity {
                     value: "Add a random todo".to_string(),
                     font: f,
                     style: TextStyle {
-                        font_size: 16.0,
+                        font_size: sizes::FONT_BODY,
                         color: Color::rgb(0.8, 0.8, 0.8),
                     },
                 },

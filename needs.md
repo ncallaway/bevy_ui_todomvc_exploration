@@ -2,6 +2,9 @@
 
 - Scrolling container
 - Input component
-- Borders
+- Borders (appears there in an example, wtf am I doing wrong?)
 - Focus model / events
-- Interaction::Clicked on Press, not on Release
+- Move Interaction::Clicked to Release not Press (or have both available)
+- Interaction::DoubleClicked
+- Backward Ordering
+- Text decoration (underline)
