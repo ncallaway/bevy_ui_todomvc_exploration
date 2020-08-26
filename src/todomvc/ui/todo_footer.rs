@@ -1,11 +1,45 @@
 use bevy::prelude::*;
 
 use super::*;
-use crate::todomvc::domain::Todo;
+use crate::todomvc::domain::{Filter, Todo};
 
 pub fn build(app: &mut AppBuilder) {
-    app.add_system(count_label_system.system());
+    app.add_system(count_label_system.system())
+        .add_system_to_stage(ui_stage::USER_EVENTS, on_filter_tab_button_click.system())
+        .add_system(set_filter_tab_active_system.system());
 }
+
+fn on_filter_tab_button_click(
+    mut filter: ResMut<Filter>,
+    mut click_query: Query<(&FilterTabButton, Mutated<Interaction>)>,
+) {
+    for (ft, i) in &mut click_query.iter() {
+        if *i == Interaction::Clicked {
+            *filter = ft.0;
+        }
+    }
+}
+
+fn set_filter_tab_active_system(
+    filter: Res<Filter>,
+    mut button_query: Query<(&FilterTabButton, &mut ButtonBehavior)>,
+) {
+    for (ft, mut button) in &mut button_query.iter() {
+        button.is_active = ft.0 == *filter;
+    }
+}
+
+// fn on_add_button_clicked(
+//     mut commands: Commands,
+//     mut click_query: Query<(&AddTodoButton, Mutated<Interaction>)>,
+// ) {
+//     for (_, interaction) in &mut click_query.iter() {
+//         if *interaction == Interaction::Clicked {
+//             println!("spawning a new todo...");
+//             commands.spawn((Todo::new(Todo::random_message()),));
+//         }
+//     }
+// }
 
 fn count_label_system(mut q: Query<&Todo>, mut items: Query<(&mut Text, &mut CountLabel)>) {
     let count = q.iter().iter().len();
@@ -63,11 +97,20 @@ fn spawn_clear_button(ctx: &mut NodeContext) -> Entity {
     )
 }
 
-fn spawn_tab_button(ctx: &mut NodeContext, label: &str, last: bool) -> Entity {
-    div_node(
+struct FilterTabButton(Filter);
+
+fn spawn_tab_button(ctx: &mut NodeContext, filter: Filter, label: &str, last: bool) -> Entity {
+    let e = text_button_node(
         ctx,
-        DivNode {
-            background: ctx.colors.white.into(),
+        TextButtonNode {
+            label: TextNode {
+                text: label,
+                ..Default::default()
+            },
+            color_normal: ctx.colors.white.into(),
+            color_hover: ctx.colors.background_hover_red.into(),
+            color_active: ctx.colors.background_active_red.into(),
+            color_pressed: ctx.colors.background_pressed_red.into(),
             margin: Some(Rect {
                 left: Val::Px(0.0),
                 right: if last { sizes::ZERO } else { sizes::SPACER },
@@ -76,16 +119,10 @@ fn spawn_tab_button(ctx: &mut NodeContext, label: &str, last: bool) -> Entity {
             }),
             ..Default::default()
         },
-        |ctx| {
-            vec![text_node(
-                ctx,
-                TextNode {
-                    text: label,
-                    ..Default::default()
-                },
-            )]
-        },
-    )
+    );
+
+    ctx.cmds.insert_one(e, FilterTabButton(filter));
+    e
 }
 
 fn spawn_tab_controls(ctx: &mut NodeContext) -> Entity {
@@ -98,9 +135,9 @@ fn spawn_tab_controls(ctx: &mut NodeContext) -> Entity {
         },
         |ctx| {
             vec![
-                spawn_tab_button(ctx, "All", false),
-                spawn_tab_button(ctx, "Active", false),
-                spawn_tab_button(ctx, "Completed", true),
+                spawn_tab_button(ctx, Filter::All, "All", false),
+                spawn_tab_button(ctx, Filter::Active, "Active", false),
+                spawn_tab_button(ctx, Filter::Completed, "Completed", true),
             ]
         },
     );

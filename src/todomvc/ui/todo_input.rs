@@ -126,17 +126,6 @@ pub fn spawn_todo_input_node(ctx: &mut NodeContext) -> Entity {
 }
 
 fn spawn_placeholder_label(ctx: &mut NodeContext) -> Entity {
-    // let bundle = text_bundle(
-    //     ctx,
-    //     "What needs to be done?",
-    //     Txt {
-    //         font_size: Some(24.0),
-    //         color: Some(colors::TEXT_MUTED),
-    //         margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
-    //         ..Default::default()
-    //     },
-    // );
-
     super::text_node(
         ctx,
         TextNode {
@@ -147,49 +136,22 @@ fn spawn_placeholder_label(ctx: &mut NodeContext) -> Entity {
             ..Default::default()
         },
     )
-
-    // let e = Entity::new();
-    // ctx.cmds.spawn_as_entity(e, bundle);
-    // return e;
 }
 
 fn spawn_add_button_node(ctx: &mut NodeContext) -> Entity {
-    let e = Entity::new();
-    let f = ctx.font;
-
-    ctx.cmds
-        .spawn_as_entity(
-            e,
-            ButtonComponents {
-                style: Style {
-                    size: Size::new(Val::Auto, Val::Auto),
-                    // center button
-                    padding: Rect::xy(sizes::SPACER, sizes::SPACER_XS),
-                    // horizontally center child text
-                    justify_content: JustifyContent::Center,
-                    // // vertically center child text
-                    align_items: AlignItems::Center,
-                    ..Default::default()
-                },
-                material: ctx.colors.btn_normal,
+    let e = text_button_node(
+        ctx,
+        TextButtonNode {
+            label: TextNode {
+                text: "Add a random todo",
+                color: Some(Color::rgb(0.8, 0.8, 0.8)),
                 ..Default::default()
             },
-        )
-        .with(AddTodoButton)
-        .with_children(|parent| {
-            // button label
-            parent.spawn(TextComponents {
-                text: Text {
-                    value: "Add a random todo".to_string(),
-                    font: f,
-                    style: TextStyle {
-                        font_size: sizes::FONT_BODY,
-                        color: Color::rgb(0.8, 0.8, 0.8),
-                    },
-                },
-                ..Default::default()
-            });
-        });
+            ..Default::default()
+        },
+    );
 
-    return e;
+    ctx.cmds.insert_one(e, AddTodoButton);
+
+    e
 }

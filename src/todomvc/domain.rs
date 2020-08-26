@@ -1,4 +1,22 @@
+use bevy::prelude::*;
 use rand::seq::SliceRandom;
+
+pub fn build(app: &mut AppBuilder) {
+    app.init_resource::<Filter>();
+}
+
+#[derive(PartialEq, Copy, Clone)]
+pub enum Filter {
+    All,
+    Active,
+    Completed,
+}
+
+impl Default for Filter {
+    fn default() -> Self {
+        Filter::All
+    }
+}
 
 pub struct Todo {
     pub label: String,

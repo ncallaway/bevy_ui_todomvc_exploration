@@ -7,5 +7,6 @@ mod ui;
 impl Plugin for TodoPlugin {
     fn build(&self, app: &mut AppBuilder) {
         ui::build(app);
+        domain::build(app);
     }
 }
