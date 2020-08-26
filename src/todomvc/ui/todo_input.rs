@@ -28,7 +28,6 @@ fn on_add_button_clicked(
     for (_, interaction) in &mut click_query.iter() {
         if *interaction == Interaction::Clicked {
             let label = Todo::random_message();
-            println!("Creating a todo: {}", &label);
             commands.spawn((Todo::new(label),));
         }
     }
