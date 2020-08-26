@@ -23,9 +23,9 @@ struct TodoInputReaderState {
 
 fn on_add_button_clicked(
     mut commands: Commands,
-    mut click_query: Query<(Entity, &AddTodoButton, Mutated<Interaction>)>,
+    mut click_query: Query<(&AddTodoButton, Mutated<Interaction>)>,
 ) {
-    for (e, _button, interaction) in &mut click_query.iter() {
+    for (_, interaction) in &mut click_query.iter() {
         if *interaction == Interaction::Clicked {
             commands.spawn((Todo::new(Todo::random_message()),));
         }
@@ -63,7 +63,6 @@ fn on_todo_input_focus(
         if let Ok(focused_children) = inputs.get_mut::<Children>(event.focused) {
             for child in &focused_children.0 {
                 if let Ok(_) = texts.get::<Text>(*child) {
-                    println!("\tDespawning placeholder label recurisve: {:?}", child);
                     ctx.cmds.despawn_recursive(*child);
                 }
             }
@@ -80,7 +79,6 @@ fn on_todo_input_focus(
                 // normally we'd use add_buttons.get::() here, but see below
                 for (e, _) in &mut add_buttons.iter() {
                     if e == *child {
-                        println!("\tDespawning button recurisve: {:?}", child);
                         ctx.cmds.despawn_recursive(*child);
                     }
                 }
@@ -128,20 +126,28 @@ pub fn spawn_todo_input_node(ctx: &mut NodeContext) -> Entity {
 }
 
 fn spawn_placeholder_label(ctx: &mut NodeContext) -> Entity {
-    let bundle = text_bundle(
+    // let bundle = text_bundle(
+    //     ctx,
+    //     "What needs to be done?",
+    //     Txt {
+    //         font_size: Some(24.0),
+    //         color: Some(colors::TEXT_MUTED),
+    //         margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
+    //         ..Default::default()
+    //     },
+    // );
+
+    super::text_node(
         ctx,
-        "What needs to be done?",
-        Txt {
-            font_size: Some(24.0),
-            color: Some(colors::TEXT_MUTED),
-            margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
+        TextNode {
+            text: "What needs to be done?",
             ..Default::default()
         },
-    );
+    )
 
-    let e = Entity::new();
-    ctx.cmds.spawn_as_entity(e, bundle);
-    return e;
+    // let e = Entity::new();
+    // ctx.cmds.spawn_as_entity(e, bundle);
+    // return e;
 }
 
 fn spawn_add_button_node(ctx: &mut NodeContext) -> Entity {

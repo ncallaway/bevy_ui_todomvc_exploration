@@ -11,7 +11,6 @@ pub mod colors {
 
     const GRAY_1: Color = Color::rgb(0.95, 0.95, 0.95);
     const GRAY_3: Color = Color::rgb(0.6, 0.6, 0.6);
-    #[allow(dead_code)]
     const GRAY_8: Color = Color::rgb(0.1, 0.1, 0.1);
     const _GRAY_9: Color = Color::rgb(0.05, 0.05, 0.05);
 
@@ -19,7 +18,7 @@ pub mod colors {
     pub const HEADER_RED: Color =
         Color::rgba(175f32 / 255f32, 47f32 / 255f32, 47f32 / 255f32, 0.45);
     pub const TEXT_MUTED: Color = GRAY_3;
-    pub const _TEXT: Color = GRAY_8;
+    pub const TEXT: Color = GRAY_8;
     pub const WHITE: Color = Color::WHITE;
 }
 
@@ -189,17 +188,6 @@ fn focusable_click_system(
         }
     }
 
-    if mouse_clicked {
-        println!(
-            "Mouse clicked! Was a focusable clicked: {} ",
-            focusable_clicked
-        );
-    }
-
-    if focusable_clicked && !mouse_clicked {
-        println!("FOCUS CLICK WITHOUT A MOUSE CLICK");
-    }
-
     if !focusable_clicked && mouse_clicked {
         for (entity, focusable) in &mut focusable_query.iter() {
             set_focus(
@@ -223,12 +211,10 @@ fn set_focus(
     let had_focus = focusable.has_focus();
 
     if is_focused != had_focus && is_focused {
-        println!("focusing: {:?}", entity);
         focus_events.send(FocusEvent { focused: entity });
     }
 
     if is_focused != had_focus && !is_focused {
-        println!("blurruing: {:?}", entity);
         blur_events.send(BlurEvent { blurred: entity });
     }
 
@@ -307,7 +293,13 @@ fn setup_ui(
                 },
                 |ctx| {
                     vec![
-                        heading_node(ctx, "todos"),
+                        heading_node(
+                            ctx,
+                            TextNode {
+                                text: "todos",
+                                ..Default::default()
+                            },
+                        ),
                         div_node(
                             ctx,
                             Div {
@@ -331,19 +323,19 @@ fn setup_ui(
                     vec![
                         text_node(
                             ctx,
-                            "Double-click to edit a todo",
-                            Some(Txt {
+                            TextNode {
+                                text: "Double-click to edit a todo",
                                 color: Some(colors::TEXT_MUTED),
                                 ..Default::default()
-                            }),
+                            },
                         ),
                         text_node(
                             ctx,
-                            "Made with bevy_ui",
-                            Some(Txt {
+                            TextNode {
+                                text: "Made with bevy_ui",
                                 color: Some(colors::TEXT_MUTED),
                                 ..Default::default()
-                            }),
+                            },
                         ),
                     ]
                 },
@@ -352,24 +344,27 @@ fn setup_ui(
     });
 }
 
-fn heading_node(ctx: &mut NodeContext, heading: &str) -> Entity {
-    let e = Entity::new();
-    ctx.cmds.spawn_as_entity(e, heading_bundle(heading, ctx));
+fn heading_node(ctx: &mut NodeContext, mut node: TextNode) -> Entity {
+    node.font_size = node.font_size.or(Some(100f32));
+    node.color = node.color.or(Some(colors::HEADER_RED));
+    text_node(ctx, node)
+    // let e = Entity::new();
+    // ctx.cmds.spawn_as_entity(e, heading_bundle(heading, ctx));
 
-    return e;
+    // return e;
 }
 
-fn heading_bundle(heading: &str, ctx: &NodeContext) -> TextComponents {
-    return text_bundle(
-        ctx,
-        heading,
-        Txt {
-            font_size: Some(100f32),
-            color: Some(colors::HEADER_RED),
-            ..Default::default()
-        },
-    );
-}
+// fn heading_bundle(heading: &str, ctx: &NodeContext) -> TextComponents {
+//     return text_bundle(
+//         ctx,
+//         heading,
+//         Txt {
+//             font_size: Some(100f32),
+//             color: Some(colors::HEADER_RED),
+//             ..Default::default()
+//         },
+//     );
+// }
 
 fn div_bundle(ctx: &mut NodeContext, opts: Div) -> NodeComponents {
     NodeComponents {
@@ -411,69 +406,55 @@ fn div_node(
     return e;
 }
 
-#[derive(Default)]
-pub struct Txt {
+#[derive(Default, Clone)]
+pub struct TextNode<'a> {
+    pub text: &'a str,
     pub font_size: Option<f32>,
     pub color: Option<Color>,
     pub padding: Option<Rect<Val>>,
     pub margin: Option<Rect<Val>>,
 }
 
-pub fn text_bundle(ctx: &NodeContext, heading: &str, opts: Txt) -> TextComponents {
-    return TextComponents {
-        style: Style {
-            align_self: AlignSelf::Center,
-            padding: opts.padding.unwrap_or_default(),
-            margin: opts.margin.unwrap_or_default(),
-            ..Default::default()
-        },
-        text: Text {
-            value: heading.to_string(),
-            font: ctx.font,
-            style: TextStyle {
-                font_size: opts.font_size.unwrap_or(16.0),
-                color: opts.color.unwrap_or(colors::HEADER_RED),
+pub fn text_node(ctx: &mut NodeContext, node: TextNode) -> Entity {
+    ctx.spawn_node(|e, ctx| {
+        let bundle = TextComponents {
+            style: Style {
+                align_self: AlignSelf::Center,
+                padding: node.padding.unwrap_or_default(),
+                margin: node.margin.unwrap_or_default(),
+                ..Default::default()
             },
-        },
-        ..Default::default()
-    };
-}
-pub fn text_node(ctx: &mut NodeContext, text: &str, opts: Option<Txt>) -> Entity {
-    let e = Entity::new();
-    ctx.cmds
-        .spawn_as_entity(e, text_bundle(ctx, text, opts.unwrap_or_default()));
-
-    return e;
-}
-
-fn root_bundle(context: &mut NodeContext) -> NodeComponents {
-    NodeComponents {
-        style: Style {
-            size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-            padding: Rect::xy(sizes::SPACER_XL, sizes::SPACER_LG),
-            justify_content: JustifyContent::SpaceBetween,
-            flex_direction: FlexDirection::ColumnReverse,
+            text: Text {
+                value: node.text.to_string(),
+                font: ctx.font,
+                style: TextStyle {
+                    font_size: node.font_size.unwrap_or(16.0),
+                    color: node.color.unwrap_or(colors::TEXT),
+                },
+            },
             ..Default::default()
-        },
-        material: context.materials.add(colors::PAGE_BACKGROUND.into()),
-        ..Default::default()
-    }
+        };
+
+        ctx.cmds.spawn_as_entity(e, bundle);
+    })
 }
 
 fn root_node(ctx: &mut NodeContext, children: impl Fn(&mut NodeContext) -> Vec<Entity>) -> Entity {
-    // let root = Entity::new();
+    ctx.spawn_node(|e, ctx| {
+        let bundle = NodeComponents {
+            style: Style {
+                size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                padding: Rect::xy(sizes::SPACER_XL, sizes::SPACER_LG),
+                justify_content: JustifyContent::SpaceBetween,
+                flex_direction: FlexDirection::ColumnReverse,
+                ..Default::default()
+            },
+            material: ctx.materials.add(colors::PAGE_BACKGROUND.into()),
+            ..Default::default()
+        };
 
-    // let children = children(ctx.cmds, ctx);
-
-    // ctx.cmds
-    //     .spawn_as_entity(root, root_bundle(ctx))
-    //     .with(Root)
-    //     .push_children(root, &children);
-
-    // return root;
-    tap_entity(|e| {
         let children = children(ctx);
-        let bundle = root_bundle(ctx);
+
         ctx.cmds
             .spawn_as_entity(e, bundle)
             .with(Root)
@@ -481,12 +462,12 @@ fn root_node(ctx: &mut NodeContext, children: impl Fn(&mut NodeContext) -> Vec<E
     })
 }
 
-fn tap_entity(mut do_stuff: impl FnMut(Entity)) -> Entity {
-    let e = Entity::new();
-
-    do_stuff(e);
-
-    return e;
+impl NodeContext<'_> {
+    fn spawn_node(&mut self, mut s: impl FnMut(Entity, &mut NodeContext)) -> Entity {
+        let e = Entity::new();
+        s(e, self);
+        return e;
+    }
 }
 
 // fn button(
