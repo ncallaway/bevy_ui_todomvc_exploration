@@ -29,6 +29,7 @@ fn on_todo_added(
     mut added_query: Query<Added<Todo>>,
     mut any_query: Query<&Todo>,
     mut container_query: Query<(Entity, &TodoContainer)>,
+    mut todo_bodies: Query<(Entity, &TodoBody)>,
 ) {
     let font = asset_server
         .get_handle("assets/fonts/FiraSans-ExtraLight.ttf")
@@ -62,14 +63,19 @@ fn on_todo_added(
         }
 
         if !any {
-            println!("there are no remaining todos!!!! GOOD JOB!");
-            prior.0 = false
+            for (e, _) in &mut todo_bodies.iter() {
+                // TODO: Hiding the body causing unwrap panic!
+                // ctx.cmds.despawn_recursive(e);
+            }
+            prior.0 = false;
         }
     }
 }
 
+struct TodoBody;
+
 fn spawn_todo_body(ctx: &mut NodeContext) -> Entity {
-    div_node(
+    let e = div_node(
         ctx,
         DivNode {
             ..Default::default()
@@ -80,5 +86,9 @@ fn spawn_todo_body(ctx: &mut NodeContext) -> Entity {
                 todo_footer::spawn_todo_footer(ctx),
             ]
         },
-    )
+    );
+
+    ctx.cmds.insert_one(e, TodoBody);
+
+    e
 }

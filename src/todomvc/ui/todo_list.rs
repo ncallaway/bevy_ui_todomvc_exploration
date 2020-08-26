@@ -12,6 +12,7 @@ pub fn build(app: &mut AppBuilder) {
 
 fn sync_todo_system(
     mut commands: Commands,
+    filter: Res<Filter>,
     asset_server: Res<AssetServer>,
     materials: Res<ColorMaterials>,
     fonts: ResMut<Assets<Font>>,
@@ -36,9 +37,12 @@ fn sync_todo_system(
     let mut row_borrow = rows.iter();
     let mut row_iter = row_borrow.into_iter();
 
-    // todo: apply the filter
+    for (todo, t) in &mut todos.iter() {
+        // apply the filter
+        if !matches_filter(t, *filter) {
+            continue;
+        }
 
-    for (todo, _) in &mut todos.iter() {
         let has_row = row_iter.next();
 
         match has_row {
@@ -58,6 +62,14 @@ fn sync_todo_system(
     // remove the remaining entities
     for (e, _) in row_iter {
         commands.despawn_recursive(e);
+    }
+}
+
+fn matches_filter(todo: &Todo, filter: Filter) -> bool {
+    match filter {
+        Filter::All => true,
+        Filter::Active => !todo.completed,
+        Filter::Completed => todo.completed,
     }
 }
 
