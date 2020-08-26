@@ -1,11 +1,10 @@
 use bevy::prelude::*;
 
-use super::rect_helpers::RectHelpers;
-use super::ui::colors;
-use super::ui::sizes;
-use super::ui::*;
-
-use super::domain::Todo;
+use super::colors;
+use super::sizes;
+use super::*;
+use crate::rect_helpers::RectHelpers;
+use crate::todomvc::domain::Todo;
 
 pub fn build(app: &mut AppBuilder) {
     app.init_resource::<TodoInputReaderState>()
@@ -28,31 +27,10 @@ fn on_add_button_clicked(
 ) {
     for (e, _button, interaction) in &mut click_query.iter() {
         if *interaction == Interaction::Clicked {
-            println!("an add todo button was clicked: {:?}", e);
-
             commands.spawn((Todo::new(Todo::random_message()),));
         }
     }
 }
-
-// fn add_message_system(
-//   mut commands: Commands,
-//   ci: Res<ConnectionInfo>,
-//   mut network_create_messages: ResMut<CreateMessages>,
-//   mut interaction_query: Query<(&Button, Mutated<Interaction>)>,
-// ) {
-//   for (_button, interaction) in &mut interaction_query.iter() {
-//       if let Interaction::Clicked = *interaction {
-//           if ci.is_server() {
-//               // immediately create the message
-//               commands.spawn((Message::new(&random_message(), "server", 255),));
-//           } else {
-//               // schedule the message to be sent to the server
-//               network_create_messages.messages.push(random_message());
-//           }
-//       }
-//   }
-// }
 
 fn on_todo_input_focus(
     mut commands: Commands,
@@ -79,6 +57,7 @@ fn on_todo_input_focus(
         font: font,
     };
 
+    // on focus, despawn the placeholder and spawn the placeholder
     for event in readers.focus_reader.iter(&focus_events) {
         if let Ok(focused_children) = inputs.get_mut::<Children>(event.focused) {
             for child in &focused_children.0 {
@@ -93,6 +72,7 @@ fn on_todo_input_focus(
         }
     }
 
+    // on focus, despawn the placeholder and spawn the placeholder
     for event in readers.blur_reader.iter(&blur_events) {
         if let Ok(blurred_children) = inputs.get::<Children>(event.blurred) {
             for child in &blurred_children.0 {
@@ -118,24 +98,6 @@ fn on_todo_input_focus(
             commands.push_children(event.blurred, &[label]);
         }
     }
-}
-
-fn spawn_placeholder_label(commands: &mut Commands, ctx: &mut NodeContext) -> Entity {
-    let bundle = text_bundle(
-        ctx,
-        "What needs to be done?",
-        Txt {
-            font_size: Some(24.0),
-            color: Some(colors::TEXT_MUTED),
-            margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
-            ..Default::default()
-        },
-    );
-
-    let e = Entity::new();
-    println!("Spawning placeholder label: {:?}", e);
-    commands.spawn_as_entity(e, bundle);
-    return e;
 }
 
 pub fn spawn_todo_input_node(commands: &mut Commands, ctx: &mut NodeContext) -> Entity {
@@ -164,10 +126,25 @@ pub fn spawn_todo_input_node(commands: &mut Commands, ctx: &mut NodeContext) -> 
     return e;
 }
 
+fn spawn_placeholder_label(commands: &mut Commands, ctx: &mut NodeContext) -> Entity {
+    let bundle = text_bundle(
+        ctx,
+        "What needs to be done?",
+        Txt {
+            font_size: Some(24.0),
+            color: Some(colors::TEXT_MUTED),
+            margin: Some(Rect::xy(sizes::SPACER_LG, sizes::SPACER_SM)),
+            ..Default::default()
+        },
+    );
+
+    let e = Entity::new();
+    commands.spawn_as_entity(e, bundle);
+    return e;
+}
+
 fn spawn_add_button_node(commands: &mut Commands, ctx: &NodeContext) -> Entity {
     let e = Entity::new();
-
-    println!("Spawning add button: {:?}", e);
 
     commands
         .spawn_as_entity(

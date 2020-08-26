@@ -2,9 +2,9 @@ use bevy::input::keyboard::ElementState;
 use bevy::input::mouse::MouseButtonInput;
 use bevy::prelude::*;
 
-use super::todo_input;
+use crate::rect_helpers::*;
 
-use super::rect_helpers::RectHelpers;
+mod todo_input;
 
 pub mod colors {
     use bevy::prelude::Color;

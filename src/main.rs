@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+mod rect_helpers;
 mod todomvc;
 
 fn main() {
