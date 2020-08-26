@@ -38,8 +38,8 @@ fn on_todo_added(
     mut prior: ResMut<PriorTodos>,
     asset_server: Res<AssetServer>,
     fonts: ResMut<Assets<Font>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-    button_materials: Res<ButtonMaterials>,
+    materials: Res<ColorMaterials>,
+    asset_materials: ResMut<Assets<ColorMaterial>>,
     mut added_query: Query<Added<Todo>>,
     mut any_query: Query<&Todo>,
     mut container_query: Query<(Entity, &TodoContainer)>,
@@ -52,8 +52,8 @@ fn on_todo_added(
         cmds: &mut commands,
         asset_server: asset_server,
         fonts: fonts,
-        materials: materials,
-        button_materials: button_materials,
+        colors: materials,
+        asset_materials: asset_materials,
         font: font,
     };
 

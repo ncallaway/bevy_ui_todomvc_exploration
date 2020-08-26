@@ -48,19 +48,25 @@ pub mod sizes {
     pub const FONT_BODY: f32 = 16.0;
 }
 
-pub struct ButtonMaterials {
-    pub normal: Handle<ColorMaterial>,
-    pub hovered: Handle<ColorMaterial>,
-    pub pressed: Handle<ColorMaterial>,
+pub struct ColorMaterials {
+    pub page_background: Handle<ColorMaterial>,
+    pub white: Handle<ColorMaterial>,
+
+    pub btn_normal: Handle<ColorMaterial>,
+    pub btn_hovered: Handle<ColorMaterial>,
+    pub btn_pressed: Handle<ColorMaterial>,
 }
 
-impl FromResources for ButtonMaterials {
+impl FromResources for ColorMaterials {
     fn from_resources(resources: &Resources) -> Self {
         let mut materials = resources.get_mut::<Assets<ColorMaterial>>().unwrap();
-        ButtonMaterials {
-            normal: materials.add(Color::rgb(0.02, 0.02, 0.02).into()),
-            hovered: materials.add(Color::rgb(0.05, 0.05, 0.05).into()),
-            pressed: materials.add(Color::rgb(0.1, 0.5, 0.1).into()),
+        ColorMaterials {
+            page_background: materials.add(colors::PAGE_BACKGROUND.into()),
+            white: materials.add(colors::WHITE.into()),
+
+            btn_normal: materials.add(Color::rgb(0.02, 0.02, 0.02).into()),
+            btn_hovered: materials.add(Color::rgb(0.05, 0.05, 0.05).into()),
+            btn_pressed: materials.add(Color::rgb(0.1, 0.5, 0.1).into()),
         }
     }
 }
@@ -71,7 +77,7 @@ pub fn build(app: &mut AppBuilder) {
         .add_event::<BlurEvent>()
         .add_stage_before(stage::UPDATE, ui_stage::USER_EVENTS)
         .add_stage_after(stage::UPDATE, ui_stage::DOMAIN_EVENTS)
-        .init_resource::<ButtonMaterials>()
+        .init_resource::<ColorMaterials>()
         .init_resource::<Focus>()
         .init_resource::<FocusableClickedState>()
         .add_startup_system(setup_ui.system())
@@ -129,8 +135,8 @@ pub struct NodeContext<'a> {
     pub cmds: &'a mut Commands,
     pub asset_server: Res<'a, AssetServer>,
     pub fonts: ResMut<'a, Assets<Font>>,
-    pub materials: ResMut<'a, Assets<ColorMaterial>>,
-    pub button_materials: Res<'a, ButtonMaterials>,
+    pub asset_materials: ResMut<'a, Assets<ColorMaterial>>,
+    pub colors: Res<'a, ColorMaterials>,
     pub font: Handle<Font>,
 }
 
@@ -222,19 +228,19 @@ fn set_focus(
 }
 
 fn button_interaction_system(
-    button_materials: Res<ButtonMaterials>,
+    button_materials: Res<ColorMaterials>,
     mut interaction_query: Query<(&Button, Mutated<Interaction>, &mut Handle<ColorMaterial>)>,
 ) {
     for (_, interaction, mut material) in &mut interaction_query.iter() {
         match *interaction {
             Interaction::Clicked => {
-                *material = button_materials.pressed;
+                *material = button_materials.btn_pressed;
             }
             Interaction::Hovered => {
-                *material = button_materials.hovered;
+                *material = button_materials.btn_hovered;
             }
             Interaction::None => {
-                *material = button_materials.normal;
+                *material = button_materials.btn_normal;
             }
         }
     }
@@ -243,9 +249,9 @@ fn button_interaction_system(
 fn setup_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    materials: Res<ColorMaterials>,
     fonts: ResMut<Assets<Font>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-    button_materials: Res<ButtonMaterials>,
+    asset_materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let font = asset_server
         .load("assets/fonts/FiraSans-ExtraLight.ttf")
@@ -255,8 +261,8 @@ fn setup_ui(
         cmds: &mut commands,
         asset_server: asset_server,
         fonts: fonts,
-        materials: materials,
-        button_materials: button_materials,
+        colors: materials,
+        asset_materials: asset_materials,
         font: font,
     };
 
@@ -269,7 +275,7 @@ fn setup_ui(
             div_node(
                 ctx,
                 DivNode {
-                    background: colors::PAGE_BACKGROUND,
+                    background: ctx.colors.page_background.into(),
                     align_items: Some(AlignItems::Center),
                     ..Default::default()
                 },
@@ -300,7 +306,7 @@ fn setup_ui(
             div_node(
                 ctx,
                 DivNode {
-                    background: colors::PAGE_BACKGROUND,
+                    background: ctx.colors.page_background.into(),
                     ..Default::default()
                 },
                 |ctx| {
@@ -336,7 +342,7 @@ fn heading_node(ctx: &mut NodeContext, mut node: TextNode) -> Entity {
 
 #[derive(Default)]
 pub struct DivNode {
-    pub background: Color,
+    pub background: Background,
     pub size: Option<Size<Val>>,
     pub min_size: Option<Size<Val>>,
     pub max_size: Option<Size<Val>>,
@@ -345,6 +351,32 @@ pub struct DivNode {
     pub margin: Option<Rect<Val>>,
     pub flex_direction: Option<FlexDirection>,
     pub justify_content: Option<JustifyContent>,
+}
+
+pub enum Background {
+    Color(Color),
+    Material(Handle<ColorMaterial>),
+}
+
+impl From<Handle<ColorMaterial>> for Background {
+    fn from(m: Handle<ColorMaterial>) -> Background {
+        Background::Material(m)
+    }
+}
+
+impl Default for Background {
+    fn default() -> Self {
+        return Background::Color(Color::default());
+    }
+}
+
+impl Background {
+    fn get_material(&self, ctx: &mut NodeContext) -> Handle<ColorMaterial> {
+        match self {
+            Background::Color(c) => ctx.asset_materials.add((*c).into()),
+            Background::Material(m) => *m,
+        }
+    }
 }
 
 fn div_node(
@@ -365,7 +397,7 @@ fn div_node(
                 justify_content: node.justify_content.unwrap_or_default(),
                 ..Default::default()
             },
-            material: ctx.materials.add(node.background.into()),
+            material: node.background.get_material(ctx),
             ..Default::default()
         };
 
@@ -419,7 +451,7 @@ fn root_node(ctx: &mut NodeContext, children: impl Fn(&mut NodeContext) -> Vec<E
                 flex_direction: FlexDirection::ColumnReverse,
                 ..Default::default()
             },
-            material: ctx.materials.add(colors::PAGE_BACKGROUND.into()),
+            material: ctx.colors.page_background,
             ..Default::default()
         };
 

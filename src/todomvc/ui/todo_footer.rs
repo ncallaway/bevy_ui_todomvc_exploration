@@ -5,8 +5,6 @@ use crate::todomvc::domain::Todo;
 
 pub fn build(app: &mut AppBuilder) {
     app.add_system(count_label_system.system());
-    // app.add_resource(PriorTodos(false))
-    //     .add_system_to_stage(ui_stage::DOMAIN_EVENTS, on_todo_added.system());
 }
 
 fn count_label_system(mut q: Query<&Todo>, mut items: Query<(&mut Text, &mut CountLabel)>) {
@@ -50,7 +48,7 @@ fn spawn_clear_button(ctx: &mut NodeContext) -> Entity {
     div_node(
         ctx,
         DivNode {
-            background: colors::WHITE,
+            background: ctx.colors.white.into(),
             ..Default::default()
         },
         |ctx| {
@@ -69,7 +67,7 @@ fn spawn_tab_button(ctx: &mut NodeContext, label: &str, last: bool) -> Entity {
     div_node(
         ctx,
         DivNode {
-            background: colors::WHITE,
+            background: ctx.colors.white.into(),
             margin: Some(Rect {
                 left: Val::Px(0.0),
                 right: if last { sizes::ZERO } else { sizes::SPACER },
@@ -91,10 +89,10 @@ fn spawn_tab_button(ctx: &mut NodeContext, label: &str, last: bool) -> Entity {
 }
 
 fn spawn_tab_controls(ctx: &mut NodeContext) -> Entity {
-    div_node(
+    let e = div_node(
         ctx,
         DivNode {
-            background: colors::WHITE,
+            background: ctx.colors.white.into(),
             flex_direction: Some(FlexDirection::Row),
             ..Default::default()
         },
@@ -105,14 +103,16 @@ fn spawn_tab_controls(ctx: &mut NodeContext) -> Entity {
                 spawn_tab_button(ctx, "Completed", true),
             ]
         },
-    )
+    );
+
+    e
 }
 
 pub fn spawn_todo_footer(ctx: &mut NodeContext) -> Entity {
     div_node(
         ctx,
         DivNode {
-            background: Color::WHITE,
+            background: ctx.colors.white.into(),
             flex_direction: Some(FlexDirection::Row),
             justify_content: Some(JustifyContent::SpaceBetween),
             padding: Some(Rect::xy(sizes::SPACER, sizes::SPACER_SM)),

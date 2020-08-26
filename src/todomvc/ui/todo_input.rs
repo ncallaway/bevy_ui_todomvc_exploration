@@ -40,8 +40,8 @@ fn on_todo_input_focus(
     blur_events: Res<Events<BlurEvent>>,
     asset_server: Res<AssetServer>,
     fonts: ResMut<Assets<Font>>,
-    materials: ResMut<Assets<ColorMaterial>>,
-    button_materials: Res<ButtonMaterials>,
+    materials: Res<ColorMaterials>,
+    asset_materials: ResMut<Assets<ColorMaterial>>,
     inputs: Query<(&TodoInputNode, &mut Children)>,
     texts: Query<(Entity, &Text)>,
     mut add_buttons: Query<(Entity, &AddTodoButton)>,
@@ -54,8 +54,8 @@ fn on_todo_input_focus(
         cmds: &mut commands,
         asset_server: asset_server,
         fonts: fonts,
-        materials: materials,
-        button_materials: button_materials,
+        colors: materials,
+        asset_materials: asset_materials,
         font: font,
     };
 
@@ -109,7 +109,7 @@ pub fn spawn_todo_input_node(ctx: &mut NodeContext) -> Entity {
             align_items: AlignItems::Center,
             ..Default::default()
         },
-        material: ctx.materials.add(colors::WHITE.into()),
+        material: ctx.colors.white,
         ..Default::default()
     };
 
@@ -171,7 +171,7 @@ fn spawn_add_button_node(ctx: &mut NodeContext) -> Entity {
                     align_items: AlignItems::Center,
                     ..Default::default()
                 },
-                material: ctx.button_materials.normal,
+                material: ctx.colors.btn_normal,
                 ..Default::default()
             },
         )
