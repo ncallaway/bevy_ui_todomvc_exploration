@@ -140,31 +140,13 @@ fn focusable_click_system(
     mut focus_events: ResMut<Events<FocusEvent>>,
     mut blur_events: ResMut<Events<BlurEvent>>,
     mut focusable_query: Query<(Entity, &mut Focusable)>,
-    // mut interation_query: Query<(&TodoInputNode, &mut Focusable, Mutated<Interaction>)>,
 ) {
-    // for (node, mut focus, int) in &mut interation_query.iter() {
-    //     if let Interaction::Clicked = *int {
-    //         println!("todo input has focus (before): {}", focus.has_focus);
-    //         focus.has_focus = true;
-    //         println!("todo input has focus (after): {}", focus.has_focus);
-    //     }
-    // }
-
     let mut mouse_clicked = false;
     for e in click_state.mouse_click_reader.iter(&mouse_click_events) {
         if e.button == MouseButton::Left && e.state == ElementState::Pressed {
             mouse_clicked = true
         }
     }
-    // map, any because we always want our reader to consume all the events
-    // .map(|e| e.button == MouseButton::Left && e.state == ElementState::Pressed)
-    // .any(|e| e);
-
-    // let focusable_entity_clicked = click_state
-    //     .node_click_reader
-    //     .iter(&node_click_events)
-    // .map(|e| focusable_query.get::<Focusable>(e.clicked).ok());
-    // .find(|e| e.is_some());
 
     let mut focusable_entity_clicked = None;
     let mut focusable_clicked = false;
@@ -221,25 +203,6 @@ fn set_focus(
     focusable.has_focus = is_focused;
 }
 
-// fn spam_todo_input_events(
-//     mut readers: ResMut<TodoInputReaderState>,
-//     focus_events: Res<Events<FocusEvent>>,
-//     blur_events: Res<Events<BlurEvent>>,
-//     inputs: Query<&TodoInputNode>,
-// ) {
-//     for event in readers.focus_reader.iter(&focus_events) {
-//         if let Ok(_) = inputs.get::<TodoInputNode>(event.focused) {
-//             println!("Got focus!");
-//         }
-//     }
-
-//     for event in readers.blur_reader.iter(&blur_events) {
-//         if let Ok(_) = inputs.get::<TodoInputNode>(event.blurred) {
-//             println!("Lost focus :/");
-//         }
-//     }
-// }
-
 fn button_interaction_system(
     button_materials: Res<ButtonMaterials>,
     mut interaction_query: Query<(&Button, Mutated<Interaction>, &mut Handle<ColorMaterial>)>,
@@ -287,7 +250,7 @@ fn setup_ui(
         vec![
             div_node(
                 ctx,
-                Div {
+                DivNode {
                     background: colors::PAGE_BACKGROUND,
                     ..Default::default()
                 },
@@ -302,7 +265,7 @@ fn setup_ui(
                         ),
                         div_node(
                             ctx,
-                            Div {
+                            DivNode {
                                 background: colors::PAGE_BACKGROUND,
                                 align_items: Some(AlignItems::Center),
                                 margin: Some(Rect::top(sizes::SPACER)),
@@ -315,7 +278,7 @@ fn setup_ui(
             ),
             div_node(
                 ctx,
-                Div {
+                DivNode {
                     background: colors::PAGE_BACKGROUND,
                     ..Default::default()
                 },
@@ -348,62 +311,41 @@ fn heading_node(ctx: &mut NodeContext, mut node: TextNode) -> Entity {
     node.font_size = node.font_size.or(Some(100f32));
     node.color = node.color.or(Some(colors::HEADER_RED));
     text_node(ctx, node)
-    // let e = Entity::new();
-    // ctx.cmds.spawn_as_entity(e, heading_bundle(heading, ctx));
-
-    // return e;
-}
-
-// fn heading_bundle(heading: &str, ctx: &NodeContext) -> TextComponents {
-//     return text_bundle(
-//         ctx,
-//         heading,
-//         Txt {
-//             font_size: Some(100f32),
-//             color: Some(colors::HEADER_RED),
-//             ..Default::default()
-//         },
-//     );
-// }
-
-fn div_bundle(ctx: &mut NodeContext, opts: Div) -> NodeComponents {
-    NodeComponents {
-        style: Style {
-            size: Size::new(Val::Auto, Val::Auto),
-            flex_direction: FlexDirection::ColumnReverse,
-            align_items: opts.align_items.unwrap_or_default(),
-            padding: opts.padding.unwrap_or_default(),
-            margin: opts.margin.unwrap_or_default(),
-            ..Default::default()
-        },
-        material: ctx.materials.add(opts.background.into()),
-        ..Default::default()
-    }
 }
 
 #[derive(Default)]
-pub struct Div {
+pub struct DivNode {
     pub background: Color,
     pub align_items: Option<AlignItems>,
     pub padding: Option<Rect<Val>>,
     pub margin: Option<Rect<Val>>,
+    pub flex_direction: Option<FlexDirection>,
 }
 
 fn div_node(
     ctx: &mut NodeContext,
-    opts: Div,
+    node: DivNode,
     mut children: impl FnMut(&mut NodeContext) -> Vec<Entity>,
 ) -> Entity {
-    let children = children(ctx);
+    ctx.spawn_node(|e, ctx| {
+        let bundle = NodeComponents {
+            style: Style {
+                size: Size::new(Val::Auto, Val::Auto),
+                flex_direction: node.flex_direction.unwrap_or(FlexDirection::ColumnReverse),
+                align_items: node.align_items.unwrap_or_default(),
+                padding: node.padding.unwrap_or_default(),
+                margin: node.margin.unwrap_or_default(),
+                ..Default::default()
+            },
+            material: ctx.materials.add(node.background.into()),
+            ..Default::default()
+        };
 
-    let e = Entity::new();
-
-    let bundle = div_bundle(ctx, opts);
-    ctx.cmds
-        .spawn_as_entity(e, bundle)
-        .push_children(e, &children);
-
-    return e;
+        let children = children(ctx);
+        ctx.cmds
+            .spawn_as_entity(e, bundle)
+            .push_children(e, &children);
+    })
 }
 
 #[derive(Default, Clone)]
