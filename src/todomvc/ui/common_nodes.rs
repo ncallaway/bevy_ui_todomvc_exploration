@@ -20,14 +20,17 @@ pub fn text_button_node(ctx: &mut NodeContext, node: TextButtonNode) -> Entity {
         let bundle = ButtonComponents {
             style: Style {
                 size: Size::new(Val::Auto, Val::Auto),
-                padding: Rect::xy(sizes::SPACER, sizes::SPACER_XS),
+                padding: node
+                    .padding
+                    .unwrap_or(Rect::xy(sizes::SPACER, sizes::SPACER_XS)),
                 // center the label
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 margin: node.margin.unwrap_or_default(),
+                // flex_grow: node.flex_grow.unwrap_or(0.0),
                 ..Default::default()
             },
-            material: node.color_normal.unwrap_or(ctx.colors.btn_normal),
+            material: node.color_normal.unwrap_or(ctx.colors.btn_dark),
             ..Default::default()
         };
 
@@ -39,9 +42,9 @@ pub fn text_button_node(ctx: &mut NodeContext, node: TextButtonNode) -> Entity {
             .insert_one(
                 e,
                 ButtonBehavior {
-                    normal: node.color_normal.unwrap_or(ctx.colors.btn_normal),
-                    hover: node.color_hover.unwrap_or(ctx.colors.btn_hovered),
-                    pressed: node.color_pressed.unwrap_or(ctx.colors.btn_pressed),
+                    normal: node.color_normal.unwrap_or(ctx.colors.btn_dark),
+                    hover: node.color_hover.unwrap_or(ctx.colors.btn_dark_hovered),
+                    pressed: node.color_pressed.unwrap_or(ctx.colors.btn_dark_pressed),
                     active: node.color_active,
 
                     is_active: false,
@@ -49,47 +52,6 @@ pub fn text_button_node(ctx: &mut NodeContext, node: TextButtonNode) -> Entity {
             );
     })
 }
-
-// fn spawn_add_button_node(ctx: &mut NodeContext) -> Entity {
-//   let e = Entity::new();
-//   let f = ctx.font;
-
-//   ctx.cmds
-//       .spawn_as_entity(
-//           e,
-//           ButtonComponents {
-//               style: Style {
-//                   size: Size::new(Val::Auto, Val::Auto),
-//                   // center button
-//                   padding: Rect::xy(sizes::SPACER, sizes::SPACER_XS),
-//                   // horizontally center child text
-//                   justify_content: JustifyContent::Center,
-//                   // // vertically center child text
-//                   align_items: AlignItems::Center,
-//                   ..Default::default()
-//               },
-//               material: ctx.colors.btn_normal,
-//               ..Default::default()
-//           },
-//       )
-//       .with(AddTodoButton)
-//       .with_children(|parent| {
-//           // button label
-//           parent.spawn(TextComponents {
-//               text: Text {
-//                   value: "Add a random todo".to_string(),
-//                   font: f,
-//                   style: TextStyle {
-//                       font_size: sizes::FONT_BODY,
-//                       color: Color::rgb(0.8, 0.8, 0.8),
-//                   },
-//               },
-//               ..Default::default()
-//           });
-//       });
-
-//   return e;
-// }
 
 pub fn div_node(
     ctx: &mut NodeContext,
@@ -107,6 +69,7 @@ pub fn div_node(
                 min_size: node.min_size.unwrap_or(Size::new(Val::Auto, Val::Auto)),
                 max_size: node.max_size.unwrap_or(Size::new(Val::Auto, Val::Auto)),
                 justify_content: node.justify_content.unwrap_or_default(),
+                flex_grow: node.flex_grow.unwrap_or(0.0),
                 ..Default::default()
             },
             material: node.background.get_material(ctx),
@@ -127,6 +90,7 @@ pub fn text_node(ctx: &mut NodeContext, node: TextNode) -> Entity {
                 align_self: AlignSelf::Center,
                 padding: node.padding.unwrap_or_default(),
                 margin: node.margin.unwrap_or_default(),
+                // flex_grow: node.flex_grow.unwrap_or(0.0),
                 ..Default::default()
             },
             text: Text {
@@ -151,12 +115,15 @@ pub struct TextNode<'a> {
     pub color: Option<Color>,
     pub padding: Option<Rect<Val>>,
     pub margin: Option<Rect<Val>>,
+    pub flex_grow: Option<f32>,
 }
 
 #[derive(Default, Clone)]
 pub struct TextButtonNode<'a> {
     pub label: TextNode<'a>,
     pub margin: Option<Rect<Val>>,
+    pub padding: Option<Rect<Val>>,
+    pub flex_grow: Option<f32>,
 
     pub color_normal: Option<Handle<ColorMaterial>>,
     pub color_pressed: Option<Handle<ColorMaterial>>,
@@ -175,6 +142,7 @@ pub struct DivNode {
     pub margin: Option<Rect<Val>>,
     pub flex_direction: Option<FlexDirection>,
     pub justify_content: Option<JustifyContent>,
+    pub flex_grow: Option<f32>,
 }
 
 pub enum Background {

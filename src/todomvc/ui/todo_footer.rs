@@ -29,18 +29,6 @@ fn set_filter_tab_active_system(
     }
 }
 
-// fn on_add_button_clicked(
-//     mut commands: Commands,
-//     mut click_query: Query<(&AddTodoButton, Mutated<Interaction>)>,
-// ) {
-//     for (_, interaction) in &mut click_query.iter() {
-//         if *interaction == Interaction::Clicked {
-//             println!("spawning a new todo...");
-//             commands.spawn((Todo::new(Todo::random_message()),));
-//         }
-//     }
-// }
-
 fn count_label_system(mut q: Query<&Todo>, mut items: Query<(&mut Text, &mut CountLabel)>) {
     let count = q.iter().iter().len();
 
@@ -69,6 +57,7 @@ fn spawn_count_label(ctx: &mut NodeContext) -> Entity {
         ctx,
         TextNode {
             text: "Some items left",
+            flex_grow: Some(0.5),
             ..Default::default()
         },
     );
@@ -79,20 +68,18 @@ fn spawn_count_label(ctx: &mut NodeContext) -> Entity {
 }
 
 fn spawn_clear_button(ctx: &mut NodeContext) -> Entity {
-    div_node(
+    text_button_node(
         ctx,
-        DivNode {
-            background: ctx.colors.white.into(),
+        TextButtonNode {
+            label: TextNode {
+                text: "Clear Completed",
+                ..Default::default()
+            },
+            color_normal: ctx.colors.white.into(),
+            color_hover: ctx.colors.btn_light_hovered.into(),
+            color_pressed: ctx.colors.btn_light_pressed.into(),
+            flex_grow: Some(0.5),
             ..Default::default()
-        },
-        |ctx| {
-            vec![text_node(
-                ctx,
-                TextNode {
-                    text: "Clear Completed",
-                    ..Default::default()
-                },
-            )]
         },
     )
 }
@@ -117,6 +104,7 @@ fn spawn_tab_button(ctx: &mut NodeContext, filter: Filter, label: &str, last: bo
                 top: Val::Px(0.0),
                 bottom: Val::Px(0.0),
             }),
+            padding: Some(Rect::all(sizes::SPACER_XS)),
             ..Default::default()
         },
     );
@@ -129,8 +117,10 @@ fn spawn_tab_controls(ctx: &mut NodeContext) -> Entity {
     let e = div_node(
         ctx,
         DivNode {
-            background: ctx.colors.white.into(),
+            background: ctx.colors.page_background.into(),
+            justify_content: Some(JustifyContent::Center),
             flex_direction: Some(FlexDirection::Row),
+            flex_grow: Some(1.0),
             ..Default::default()
         },
         |ctx| {

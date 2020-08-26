@@ -8,3 +8,4 @@
 - Interaction::DoubleClicked
 - Backward Ordering
 - Text decoration (underline)
+- Animation

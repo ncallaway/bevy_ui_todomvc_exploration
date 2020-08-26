@@ -21,8 +21,13 @@ pub mod colors {
     use bevy::prelude::Color;
 
     const GRAY_1: Color = Color::rgb(0.95, 0.95, 0.95);
-    const GRAY_3: Color = Color::rgb(0.6, 0.6, 0.6);
-    const _GRAY_8: Color = Color::rgb(0.1, 0.1, 0.1);
+    const GRAY_2: Color = Color::rgb(0.85, 0.85, 0.85);
+    const GRAY_3: Color = Color::rgb(0.75, 0.75, 0.75);
+    const _GRAY_4: Color = Color::rgb(0.65, 0.65, 0.65);
+    const GRAY_5: Color = Color::rgb(0.55, 0.55, 0.55);
+    const _GRAY_6: Color = Color::rgb(0.40, 0.40, 0.40);
+    const GRAY_7: Color = Color::rgb(0.25, 0.25, 0.25);
+    const GRAY_8: Color = Color::rgb(0.15, 0.15, 0.15);
     const GRAY_9: Color = Color::rgb(0.05, 0.05, 0.05);
 
     const PRESSED_RED: Color = Color::rgb(253.0 / 255.0, 160.0 / 255.0, 160.0 / 255.0);
@@ -30,11 +35,17 @@ pub mod colors {
     const LIGHT_RED: Color = Color::rgb(253.0 / 255.0, 235.0 / 255.0, 235.0 / 255.0);
 
     pub const PAGE_BACKGROUND: Color = GRAY_1;
+    pub const BTN_DARK: Color = GRAY_9;
+    pub const BTN_DARK_HOVER: Color = GRAY_8;
+    pub const BTN_DARK_PRESSED: Color = GRAY_7;
+    pub const BTN_LIGHT: Color = GRAY_1;
+    pub const BTN_LIGHT_HOVER: Color = GRAY_2;
+    pub const BTN_LIGHT_PRESSED: Color = GRAY_3;
     pub const BACKGROUND_ACTIVE_RED: Color = FADED_RED;
     pub const BACKGROUND_HOVER_RED: Color = LIGHT_RED;
     pub const BACKGROUND_PRESSED_RED: Color = PRESSED_RED;
     pub const HEADER_RED: Color = FADED_RED;
-    pub const TEXT_MUTED: Color = GRAY_3;
+    pub const TEXT_MUTED: Color = GRAY_5;
     pub const TEXT: Color = GRAY_9;
 
     pub const WHITE: Color = Color::WHITE;
@@ -52,7 +63,7 @@ pub mod sizes {
     pub const SPACER_XL: Val = Val::Px(80.0);
     pub const SPACER: Val = SPACER_MD;
 
-    pub const APP_WIDTH: Val = Val::Px(600.0);
+    pub const APP_WIDTH: Val = Val::Px(900.0);
 
     pub const FONT_H1: f32 = 100.0;
     pub const FONT_LARGE: f32 = 24.0;
@@ -66,9 +77,13 @@ pub struct ColorMaterials {
     pub background_pressed_red: Handle<ColorMaterial>,
     pub white: Handle<ColorMaterial>,
 
-    pub btn_normal: Handle<ColorMaterial>,
-    pub btn_hovered: Handle<ColorMaterial>,
-    pub btn_pressed: Handle<ColorMaterial>,
+    pub btn_dark: Handle<ColorMaterial>,
+    pub btn_dark_hovered: Handle<ColorMaterial>,
+    pub btn_dark_pressed: Handle<ColorMaterial>,
+
+    pub btn_light: Handle<ColorMaterial>,
+    pub btn_light_hovered: Handle<ColorMaterial>,
+    pub btn_light_pressed: Handle<ColorMaterial>,
 }
 
 impl FromResources for ColorMaterials {
@@ -81,9 +96,13 @@ impl FromResources for ColorMaterials {
             background_pressed_red: materials.add(colors::BACKGROUND_PRESSED_RED.into()),
             white: materials.add(colors::WHITE.into()),
 
-            btn_normal: materials.add(Color::rgb(0.02, 0.02, 0.02).into()),
-            btn_hovered: materials.add(Color::rgb(0.05, 0.05, 0.05).into()),
-            btn_pressed: materials.add(Color::rgb(0.1, 0.5, 0.1).into()),
+            btn_dark: materials.add(colors::BTN_DARK.into()),
+            btn_dark_hovered: materials.add(colors::BTN_DARK_HOVER.into()),
+            btn_dark_pressed: materials.add(colors::BTN_DARK_PRESSED.into()),
+
+            btn_light: materials.add(colors::BTN_LIGHT.into()),
+            btn_light_hovered: materials.add(colors::BTN_LIGHT_HOVER.into()),
+            btn_light_pressed: materials.add(colors::BTN_LIGHT_PRESSED.into()),
         }
     }
 }
