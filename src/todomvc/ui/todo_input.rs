@@ -33,6 +33,7 @@ fn on_add_button_clicked(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn on_todo_input_focus(
     mut commands: Commands,
     mut readers: ResMut<TodoInputReaderState>,
@@ -52,18 +53,18 @@ fn on_todo_input_focus(
 
     let mut ctx = NodeContext {
         cmds: &mut commands,
-        asset_server: asset_server,
-        fonts: fonts,
+        asset_server,
+        fonts,
         colors: materials,
-        asset_materials: asset_materials,
-        font: font,
+        asset_materials,
+        font,
     };
 
     // on focus, despawn the placeholder and spawn the placeholder
     for event in readers.focus_reader.iter(&focus_events) {
         if let Ok(focused_children) = inputs.get_mut::<Children>(event.focused) {
             for child in &focused_children.0 {
-                if let Ok(_) = texts.get::<Text>(*child) {
+                if texts.get::<Text>(*child).is_ok() {
                     ctx.cmds.despawn_recursive(*child);
                 }
             }
@@ -122,7 +123,7 @@ pub fn spawn_todo_input_node(ctx: &mut NodeContext) -> Entity {
         .with(Interaction::default())
         .push_children(e, &children);
 
-    return e;
+    e
 }
 
 fn spawn_placeholder_label(ctx: &mut NodeContext) -> Entity {

@@ -118,7 +118,7 @@ fn spawn_complete_todo_button(ctx: &mut NodeContext) -> Entity {
 
 struct RowLabel;
 
-pub fn spawn_todo_row(ctx: &mut NodeContext, todo: Entity) -> Entity {
+pub fn spawn_todo_row(ctx: &mut NodeContext, todo: Entity, label: &str) -> Entity {
     let e = div_node(
         ctx,
         DivNode {
@@ -132,7 +132,7 @@ pub fn spawn_todo_row(ctx: &mut NodeContext, todo: Entity) -> Entity {
             let txt = text_node(
                 ctx,
                 TextNode {
-                    text: "",
+                    text: label,
                     font_size: Some(sizes::FONT_LARGE),
                     margin: Some(Rect::left(sizes::SPACER_LG)),
                     ..Default::default()

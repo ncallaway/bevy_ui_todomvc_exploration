@@ -10,6 +10,7 @@ pub fn build(app: &mut AppBuilder) {
     //     .add_system(set_filter_tab_active_system.system());
 }
 
+#[allow(clippy::too_many_arguments)]
 fn sync_todo_system(
     mut commands: Commands,
     filter: Res<Filter>,
@@ -27,11 +28,11 @@ fn sync_todo_system(
 
     let mut ctx = NodeContext {
         cmds: &mut commands,
-        asset_server: asset_server,
-        fonts: fonts,
+        asset_server,
+        fonts,
         colors: materials,
-        asset_materials: asset_materials,
-        font: font,
+        asset_materials,
+        font,
     };
 
     let mut row_borrow = rows.iter();
@@ -50,10 +51,9 @@ fn sync_todo_system(
                 row.0 = todo;
             }
             None => {
-                for (list, _) in &mut lists.iter() {
-                    let e = todo_row::spawn_todo_row(&mut ctx, todo);
+                if let Some((list, _)) = lists.iter().iter().next() {
+                    let e = todo_row::spawn_todo_row(&mut ctx, todo, t.label.as_str());
                     ctx.cmds.push_children(list, &[e]);
-                    break;
                 }
             }
         }
