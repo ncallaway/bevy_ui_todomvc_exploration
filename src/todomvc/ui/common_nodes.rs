@@ -21,14 +21,16 @@ pub fn text_button_node(ctx: &mut NodeContext, node: TextButtonNode) -> Entity {
     ctx.spawn_node(|e, ctx| {
         let bundle = ButtonComponents {
             style: Style {
-                size: node.size.unwrap_or(Size::new(Val::Auto, Val::Auto)),
+                size: node.size.unwrap_or_else(|| Size::new(Val::Auto, Val::Auto)),
                 padding: node
                     .padding
-                    .unwrap_or(Rect::xy(sizes::SPACER, sizes::SPACER_XS)),
+                    .unwrap_or_else(|| Rect::xy(sizes::SPACER, sizes::SPACER_XS)),
                 // center the label
                 justify_content: JustifyContent::Center,
                 align_items: AlignItems::Center,
                 margin: node.margin.unwrap_or_default(),
+                position_type: node.position_type.unwrap_or_default(),
+                position: node.position.unwrap_or_default(),
                 ..Default::default()
             },
             material: node.color_normal.unwrap_or(ctx.colors.btn_dark),
@@ -67,9 +69,15 @@ pub fn div_node(
                 align_items: node.align_items.unwrap_or_default(),
                 padding: node.padding.unwrap_or_default(),
                 margin: node.margin.unwrap_or_default(),
-                size: node.size.unwrap_or(Size::new(Val::Auto, Val::Auto)),
-                min_size: node.min_size.unwrap_or(Size::new(Val::Auto, Val::Auto)),
-                max_size: node.max_size.unwrap_or(Size::new(Val::Auto, Val::Auto)),
+                position_type: node.position_type.unwrap_or_default(),
+                position: node.position.unwrap_or_default(),
+                size: node.size.unwrap_or_else(|| Size::new(Val::Auto, Val::Auto)),
+                min_size: node
+                    .min_size
+                    .unwrap_or_else(|| Size::new(Val::Auto, Val::Auto)),
+                max_size: node
+                    .max_size
+                    .unwrap_or_else(|| Size::new(Val::Auto, Val::Auto)),
                 justify_content: node.justify_content.unwrap_or_default(),
                 flex_grow: node.flex_grow.unwrap_or(0.0),
                 ..Default::default()
@@ -127,6 +135,8 @@ pub struct TextButtonNode<'a> {
     pub padding: Option<Rect<Val>>,
     pub flex_grow: Option<f32>,
     pub size: Option<Size<Val>>,
+    pub position_type: Option<PositionType>,
+    pub position: Option<Rect<Val>>,
 
     pub color_normal: Option<Handle<ColorMaterial>>,
     pub color_pressed: Option<Handle<ColorMaterial>>,
@@ -146,6 +156,8 @@ pub struct DivNode {
     pub flex_direction: Option<FlexDirection>,
     pub justify_content: Option<JustifyContent>,
     pub flex_grow: Option<f32>,
+    pub position_type: Option<PositionType>,
+    pub position: Option<Rect<Val>>,
 }
 
 pub enum Background {

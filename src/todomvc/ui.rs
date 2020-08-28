@@ -309,6 +309,12 @@ fn style_button(b: &ButtonBehavior, i: &Interaction, mut material: Mut<Handle<Co
     }
 }
 
+macro_rules! default {
+    () => {
+        Default::default()
+    };
+}
+
 fn setup_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -322,11 +328,11 @@ fn setup_ui(
 
     let mut ctx = NodeContext {
         cmds: &mut commands,
-        asset_server: asset_server,
-        fonts: fonts,
+        asset_server,
+        fonts,
         colors: materials,
-        asset_materials: asset_materials,
-        font: font,
+        asset_materials,
+        font,
     };
 
     // 2d camera
@@ -340,14 +346,14 @@ fn setup_ui(
                 DivNode {
                     background: ctx.colors.page_background.into(),
                     align_items: Some(AlignItems::Center),
-                    ..Default::default()
+                    ..default!()
                 },
                 |ctx| {
                     let heading = heading_node(
                         ctx,
                         TextNode {
                             text: "todos",
-                            ..Default::default()
+                            ..default!()
                         },
                     );
 
@@ -357,7 +363,7 @@ fn setup_ui(
                             margin: Some(Rect::top(sizes::SPACER)),
                             size: Some(Size::new(Val::Percent(100.0), Val::Auto)),
                             max_size: Some(Size::new(sizes::APP_WIDTH, Val::Auto)),
-                            ..Default::default()
+                            ..default!()
                         },
                         |ctx| vec![todo_input::spawn_todo_input_node(ctx)],
                     );
@@ -370,7 +376,7 @@ fn setup_ui(
                 ctx,
                 DivNode {
                     background: ctx.colors.page_background.into(),
-                    ..Default::default()
+                    ..default!()
                 },
                 |ctx| {
                     vec![
@@ -379,7 +385,7 @@ fn setup_ui(
                             TextNode {
                                 text: "Double-click to edit a todo",
                                 color: Some(colors::TEXT_MUTED),
-                                ..Default::default()
+                                ..default!()
                             },
                         ),
                         text_node(
@@ -387,7 +393,7 @@ fn setup_ui(
                             TextNode {
                                 text: "Made with bevy_ui",
                                 color: Some(colors::TEXT_MUTED),
-                                ..Default::default()
+                                ..default!()
                             },
                         ),
                     ]
@@ -405,10 +411,10 @@ fn root_node(ctx: &mut NodeContext, children: impl Fn(&mut NodeContext) -> Vec<E
                 padding: Rect::xy(sizes::SPACER_XL, sizes::SPACER_LG),
                 justify_content: JustifyContent::SpaceBetween,
                 flex_direction: FlexDirection::ColumnReverse,
-                ..Default::default()
+                ..default!()
             },
             material: ctx.colors.page_background,
-            ..Default::default()
+            ..default!()
         };
 
         let children = children(ctx);
@@ -424,6 +430,6 @@ impl NodeContext<'_> {
     fn spawn_node(&mut self, mut s: impl FnMut(Entity, &mut NodeContext)) -> Entity {
         let e = Entity::new();
         s(e, self);
-        return e;
+        e
     }
 }
