@@ -8,6 +8,7 @@ use crate::todomvc::domain::Todo;
 
 pub fn build(app: &mut AppBuilder) {
     app.init_resource::<TodoInputReaderState>()
+        .add_system_to_stage(ui_stage::USER_EVENTS, on_mark_all_clicked.system())
         .add_system_to_stage(ui_stage::USER_EVENTS, on_add_button_clicked.system())
         .add_system_to_stage(ui_stage::USER_EVENTS, on_todo_input_focus.system());
 }
@@ -19,6 +20,26 @@ pub struct AddTodoButton;
 struct TodoInputReaderState {
     focus_reader: EventReader<FocusEvent>,
     blur_reader: EventReader<BlurEvent>,
+}
+
+fn on_mark_all_clicked(
+    mut todos: Query<&mut Todo>,
+    mut mark_all_btns: Query<(&MarkAllButton, Mutated<Interaction>)>,
+) {
+    for (_, interaction) in &mut mark_all_btns.iter() {
+        if *interaction == Interaction::Clicked {
+            let all_complete = todos.iter().iter().all(|t| t.completed);
+            if all_complete {
+                for mut t in &mut todos.iter() {
+                    t.completed = false;
+                }
+            } else {
+                for mut t in &mut todos.iter() {
+                    t.completed = true;
+                }
+            }
+        }
+    }
 }
 
 fn on_add_button_clicked(
@@ -102,11 +123,10 @@ fn on_todo_input_focus(
 }
 
 pub fn spawn_todo_input_node(ctx: &mut NodeContext) -> Entity {
-    let e = Entity::new();
+    let input = Entity::new();
 
     let bundle = NodeComponents {
         style: Style {
-            size: Size::new(Val::Percent(100.0), Val::Px(50.0)),
             align_items: AlignItems::Center,
             ..Default::default()
         },
@@ -117,11 +137,44 @@ pub fn spawn_todo_input_node(ctx: &mut NodeContext) -> Entity {
     let children = [spawn_placeholder_label(ctx)];
 
     ctx.cmds
-        .spawn_as_entity(e, bundle)
+        .spawn_as_entity(input, bundle)
         .with(TodoInputNode {})
         .with(Focusable::default())
         .with(Interaction::default())
-        .push_children(e, &children);
+        .push_children(input, &children);
+
+    div_node(
+        ctx,
+        DivNode {
+            size: Some(Size::new(Val::Percent(100.0), Val::Px(50.0))),
+            background: ctx.colors.white.into(),
+            flex_direction: Some(FlexDirection::Row),
+            position_type: Some(PositionType::Relative),
+            padding: Some(Rect::all(sizes::SPACER_SM)),
+            ..Default::default()
+        },
+        |ctx| vec![spawn_mark_all_button(ctx), input],
+    )
+}
+
+struct MarkAllButton;
+
+fn spawn_mark_all_button(ctx: &mut NodeContext) -> Entity {
+    let e = text_button_node(
+        ctx,
+        TextButtonNode {
+            label: TextNode {
+                text: " v ",
+                color: Some(colors::TEXT_LIGHT),
+                ..Default::default()
+            },
+            padding: Some(Rect::all(sizes::SPACER_XS)),
+            size: Some(Size::new(Val::Px(50.0), Val::Auto)),
+            ..Default::default()
+        },
+    );
+
+    ctx.cmds.insert_one(e, MarkAllButton);
 
     e
 }
